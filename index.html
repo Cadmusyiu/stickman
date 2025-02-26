@@ -25,18 +25,40 @@
         #controls {
             position: absolute;
             bottom: 20px;
+            left: 0;
+            right: 0;
             display: flex;
-            gap: 20px;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        #joystickContainer {
+            width: 120px;
+            height: 120px;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            position: relative;
+            touch-action: none;
+        }
+        #joystick {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255,255,255,0.4);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            touch-action: none;
         }
         .control-btn {
-            width: 60px;
+            width: 100px;
             height: 60px;
             background-color: rgba(255,255,255,0.3);
-            border-radius: 50%;
+            border-radius: 30px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
+            font-size: 20px;
             color: white;
             user-select: none;
         }
@@ -45,9 +67,8 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <div id="controls">
-        <div class="control-btn" id="leftBtn">←</div>
-        <div class="control-btn" id="jumpBtn">↑</div>
-        <div class="control-btn" id="rightBtn">→</div>
+        <div id="joystickContainer"></div>
+        <div class="control-btn" id="jumpBtn">JUMP</div>
     </div>
 
     <script>
@@ -562,31 +583,90 @@
             if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
         });
         
-        // Touch controls
-        const leftBtn = document.getElementById('leftBtn');
-        const rightBtn = document.getElementById('rightBtn');
+        // Create virtual joystick
+        const joystickContainer = document.getElementById('joystickContainer');
+        const joystick = document.createElement('div');
+        joystick.id = 'joystick';
+        joystickContainer.appendChild(joystick);
+        
+        // Jump button
         const jumpBtn = document.getElementById('jumpBtn');
         
-        leftBtn.addEventListener('touchstart', (e) => {
+        // Joystick variables
+        let joystickActive = false;
+        let joystickStartX = 0;
+        let joystickStartY = 0;
+        let joystickX = 0;
+        let joystickY = 0;
+        const joystickMax = 35; // Maximum distance joystick can move
+        
+        // Joystick touch handlers
+        joystickContainer.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            keys.left = true;
+            const touch = e.touches[0];
+            const rect = joystickContainer.getBoundingClientRect();
+            joystickStartX = touch.clientX - rect.left;
+            joystickStartY = touch.clientY - rect.top;
+            joystickActive = true;
+            
+            // Position joystick at touch point
+            joystick.style.left = joystickStartX + 'px';
+            joystick.style.top = joystickStartY + 'px';
+            joystick.style.transform = 'translate(-50%, -50%)';
         });
         
-        leftBtn.addEventListener('touchend', (e) => {
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
             e.preventDefault();
+            
+            const touch = e.touches[0];
+            const rect = joystickContainer.getBoundingClientRect();
+            joystickX = touch.clientX - rect.left - joystickStartX;
+            joystickY = touch.clientY - rect.top - joystickStartY;
+            
+            // Limit joystick movement to a circle
+            const distance = Math.sqrt(joystickX * joystickX + joystickY * joystickY);
+            if (distance > joystickMax) {
+                joystickX = (joystickX / distance) * joystickMax;
+                joystickY = (joystickY / distance) * joystickMax;
+            }
+            
+            // Update joystick position
+            joystick.style.transform = `translate(calc(-50% + ${joystickX}px), calc(-50% + ${joystickY}px))`;
+            
+            // Update player controls based on joystick position
+            if (joystickX < -10) {
+                keys.left = true;
+                keys.right = false;
+            } else if (joystickX > 10) {
+                keys.right = true;
+                keys.left = false;
+            } else {
+                keys.left = false;
+                keys.right = false;
+            }
+        });
+        
+        const resetJoystick = () => {
+            joystickActive = false;
+            joystickX = 0;
+            joystickY = 0;
             keys.left = false;
-        });
-        
-        rightBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            keys.right = true;
-        });
-        
-        rightBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
             keys.right = false;
+            joystick.style.transform = 'translate(-50%, -50%)';
+        };
+        
+        joystickContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            resetJoystick();
         });
         
+        joystickContainer.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            resetJoystick();
+        });
+        
+        // Jump button
         jumpBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             keys.up = true;
