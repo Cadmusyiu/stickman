@@ -1257,15 +1257,25 @@
             });
             
             // Menu buttons
-            startButton.addEventListener('click', function() {
-                menuScreen.style.display = 'none';
-                score = 0;
-                level = 1;
-                loadLevel(1);
-                gameActive = true;
-                lastTime = 0;
-                animationId = requestAnimationFrame(gameLoop);
-            });
+                startButton.addEventListener('click', function() {
+                    console.log('Start button clicked!');
+                    console.log('Menu Screen:', menuScreen);
+                    console.log('Canvas:', canvas);
+                    console.log('Game Container:', gameContainer);
+                
+                    try {
+                        menuScreen.style.display = 'none';
+                        score = 0;
+                        level = 1;
+                        loadLevel(1);
+                        gameActive = true;
+                        lastTime = 0;
+                        animationId = requestAnimationFrame(gameLoop);
+                        console.log('Game started successfully');
+                    } catch (error) {
+                        console.error('Error starting game:', error);
+                    }
+                });
             
             restartButton.addEventListener('click', function() {
                 gameOverScreen.style.display = 'none';
