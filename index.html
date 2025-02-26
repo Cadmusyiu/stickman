@@ -1,4 +1,115 @@
-<!DOCTYPE html>
+// Level transition
+        function loadLevel(levelIndex) {
+            const level = levels[levelIndex - 1];
+            
+            // Reset game elements
+            platforms = JSON.parse(JSON.stringify(level.platforms));
+            candles = JSON.parse(JSON.stringify(level.candles));
+            shadowEnemies = JSON.parse(JSON.stringify(level.shadowEnemies));
+            hurdles = JSON.parse(JSON.stringify(level.hurdles));
+            exitPortal = JSON.parse(JSON.stringify(level.exitPortal));
+            
+            // Reset player position
+            player.x = level.playerStart.x;
+            player.y = level.playerStart.y;
+            player.velocityX = 0;
+            player.velocityY = 0;
+            
+            // Reset level state
+            gameState.levelComplete = false;
+        }
+        
+        // Level transition screen
+        function drawLevelTransition() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '36px Arial';
+            ctx.textAlign = 'center';
+            
+            if (gameState.gameComplete) {
+                ctx.fillText('Game Complete!', canvas.width / 2, canvas.height / 2 - 40);
+                ctx.font = '24px Arial';
+                ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2);
+                ctx.font = '20px Arial';
+                ctx.fillText('Tap to play again', canvas.width / 2, canvas.height / 2 + 40);
+            } else {
+                ctx.fillText(`Level ${gameState.level - 1} Complete!`, canvas.width / 2, canvas.height / 2 - 40);
+                ctx.font = '24px Arial';
+                ctx.fillText(`Current Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2);
+                ctx.font = '20px Arial';
+                ctx.fillText('Tap to continue to next level', canvas.width / 2, canvas.height / 2 + 40);
+            }
+            
+            ctx.textAlign = 'left';
+        }        function drawHurdle(hurdle) {
+            // Spikes
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            for (let i = 0; i < hurdle.width; i += 10) {
+                ctx.moveTo(hurdle.x + i, hurdle.y + hurdle.height);
+                ctx.lineTo(hurdle.x + i + 5, hurdle.y);
+                ctx.lineTo(hurdle.x + i + 10, hurdle.y + hurdle.height);
+            }
+            ctx.fill();
+        }
+        
+        function drawExitPortal(portal) {
+            // Portal effect
+            const gradient = ctx.createRadialGradient(
+                portal.x + portal.width / 2,
+                portal.y + portal.height / 2,
+                5,
+                portal.x + portal.width / 2,
+                portal.y + portal.height / 2,
+                portal.width
+            );
+            
+            gradient.addColorStop(0, 'rgba(0, 255, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(0, 100, 255, 0.5)');
+            gradient.addColorStop(1, 'rgba(0, 0, 255, 0.1)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.ellipse(
+                portal.x + portal.width / 2,
+                portal.y + portal.height / 2,
+                portal.width / 2,
+                portal.height / 2,
+                0,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+            
+            // Portal swirl
+            const time = Date.now() / 1000;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2;
+            
+            for (let i = 0; i < 3; i++) {
+                const offset = (i * Math.PI * 2) / 3;
+                ctx.beginPath();
+                for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
+                    const radius = ((Math.sin(angle * 3 + time) + 1) / 2) * portal.width / 2;
+                    const x = portal.x + portal.width / 2 + Math.cos(angle + time + offset) * radius;
+                    const y = portal.y + portal.height / 2 + Math.sin(angle + time + offset) * radius;
+                    
+                    if (angle === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+            }
+        }        // Active game elements
+        let platforms = [];
+        let candles = [];
+        let shadowEnemies = [];
+        let hurdles = [];
+        let exitPortal = {};<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -96,7 +207,9 @@
         let gameState = {
             active: true,
             score: 0,
-            flameSize: 100 // 0-100 percentage of flame remaining
+            flameSize: 100, // 0-100 percentage of flame remaining
+            level: 1,
+            levelComplete: false
         };
         
         // Player properties
@@ -189,6 +302,42 @@
                     }
                 });
                 
+                // Hurdles collision
+                hurdles.forEach(hurdle => {
+                    if (
+                        this.x + this.width > hurdle.x &&
+                        this.x < hurdle.x + hurdle.width &&
+                        this.y + this.height > hurdle.y &&
+                        this.y < hurdle.y + hurdle.height
+                    ) {
+                        gameState.flameSize = Math.max(0, gameState.flameSize - hurdle.damage);
+                        // Push player back
+                        if (this.velocityX > 0) {
+                            this.x = hurdle.x - this.width - 5;
+                        } else if (this.velocityX < 0) {
+                            this.x = hurdle.x + hurdle.width + 5;
+                        }
+                    }
+                });
+                
+                // Exit portal collision
+                if (
+                    gameState.active &&
+                    this.x + this.width > exitPortal.x &&
+                    this.x < exitPortal.x + exitPortal.width &&
+                    this.y + this.height > exitPortal.y &&
+                    this.y < exitPortal.y + exitPortal.height
+                ) {
+                    // Level complete!
+                    gameState.levelComplete = true;
+                    if (gameState.level < levels.length) {
+                        gameState.level++;
+                    } else {
+                        // Game complete
+                        gameState.gameComplete = true;
+                    }
+                }
+                
                 // Boundaries
                 if (this.x < 0) this.x = 0;
                 if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
@@ -201,8 +350,9 @@
                 // Candle flame effect
                 this.flickerIntensity = Math.sin(Date.now() / 100) * 5;
                 
-                // Decrease flame size over time
-                gameState.flameSize = Math.max(0, gameState.flameSize - 0.05);
+                // Decrease flame size over time - rate depends on level
+                const currentLevel = levels[gameState.level - 1];
+                gameState.flameSize = Math.max(0, gameState.flameSize - currentLevel.flameDecay);
                 
                 // Check if flame has gone out
                 if (gameState.flameSize <= 0) {
@@ -364,25 +514,96 @@
             }
         };
         
-        // Platforms
-        const platforms = [
-            { x: 0, y: 400, width: 200, height: 20 },
-            { x: 250, y: 350, width: 150, height: 20 },
-            { x: 450, y: 300, width: 150, height: 20 },
-            { x: 650, y: 250, width: 150, height: 20 }
-        ];
-        
-        // Candles
-        const candles = [
-            { x: 300, y: 320, width: 10, height: 30 },
-            { x: 500, y: 270, width: 10, height: 30 },
-            { x: 700, y: 220, width: 10, height: 30 }
-        ];
-        
-        // Shadow enemies
-        const shadowEnemies = [
-            { x: 200, y: 370, width: 20, height: 30, direction: 1, speed: 1 },
-            { x: 450, y: 270, width: 20, height: 30, direction: 1, speed: 1.5 }
+        // Levels configuration
+        const levels = [
+            // Level 1 - Introduction
+            {
+                platforms: [
+                    { x: 0, y: 400, width: 200, height: 20 },
+                    { x: 250, y: 350, width: 150, height: 20 },
+                    { x: 450, y: 300, width: 150, height: 20 },
+                    { x: 650, y: 250, width: 150, height: 20 }
+                ],
+                candles: [
+                    { x: 300, y: 320, width: 10, height: 30 },
+                    { x: 500, y: 270, width: 10, height: 30 },
+                    { x: 700, y: 220, width: 10, height: 30 }
+                ],
+                shadowEnemies: [
+                    { x: 200, y: 370, width: 20, height: 30, direction: 1, speed: 1 }
+                ],
+                hurdles: [
+                    { x: 400, y: 290, width: 20, height: 10, damage: 10 }
+                ],
+                exitPortal: { x: 750, y: 200, width: 30, height: 50 },
+                playerStart: { x: 100, y: 350 },
+                flameDecay: 0.05
+            },
+            // Level 2 - More challenging
+            {
+                platforms: [
+                    { x: 0, y: 400, width: 100, height: 20 },
+                    { x: 150, y: 350, width: 100, height: 20 },
+                    { x: 300, y: 300, width: 100, height: 20 },
+                    { x: 450, y: 350, width: 100, height: 20 },
+                    { x: 600, y: 400, width: 100, height: 20 },
+                    { x: 750, y: 350, width: 100, height: 20 }
+                ],
+                candles: [
+                    { x: 180, y: 320, width: 10, height: 30 },
+                    { x: 330, y: 270, width: 10, height: 30 },
+                    { x: 480, y: 320, width: 10, height: 30 },
+                    { x: 630, y: 370, width: 10, height: 30 },
+                    { x: 780, y: 320, width: 10, height: 30 }
+                ],
+                shadowEnemies: [
+                    { x: 200, y: 320, width: 20, height: 30, direction: 1, speed: 1.5 },
+                    { x: 500, y: 320, width: 20, height: 30, direction: -1, speed: 1.5 }
+                ],
+                hurdles: [
+                    { x: 180, y: 340, width: 40, height: 10, damage: 15 },
+                    { x: 330, y: 290, width: 40, height: 10, damage: 15 },
+                    { x: 630, y: 390, width: 40, height: 10, damage: 15 }
+                ],
+                exitPortal: { x: 800, y: 300, width: 30, height: 50 },
+                playerStart: { x: 50, y: 350 },
+                flameDecay: 0.08
+            },
+            // Level 3 - Hard
+            {
+                platforms: [
+                    { x: 0, y: 400, width: 80, height: 20 },
+                    { x: 130, y: 350, width: 80, height: 20 },
+                    { x: 260, y: 300, width: 80, height: 20 },
+                    { x: 390, y: 250, width: 80, height: 20 },
+                    { x: 520, y: 200, width: 80, height: 20 },
+                    { x: 650, y: 250, width: 80, height: 20 },
+                    { x: 780, y: 300, width: 80, height: 20 }
+                ],
+                candles: [
+                    { x: 150, y: 320, width: 10, height: 30 },
+                    { x: 280, y: 270, width: 10, height: 30 },
+                    { x: 410, y: 220, width: 10, height: 30 },
+                    { x: 540, y: 170, width: 10, height: 30 },
+                    { x: 670, y: 220, width: 10, height: 30 },
+                    { x: 800, y: 270, width: 10, height: 30 }
+                ],
+                shadowEnemies: [
+                    { x: 150, y: 320, width: 20, height: 30, direction: 1, speed: 2 },
+                    { x: 280, y: 270, width: 20, height: 30, direction: -1, speed: 2 },
+                    { x: 540, y: 170, width: 20, height: 30, direction: 1, speed: 2 }
+                ],
+                hurdles: [
+                    { x: 150, y: 340, width: 40, height: 10, damage: 20 },
+                    { x: 280, y: 290, width: 40, height: 10, damage: 20 },
+                    { x: 410, y: 240, width: 40, height: 10, damage: 20 },
+                    { x: 540, y: 190, width: 40, height: 10, damage: 20 },
+                    { x: 670, y: 240, width: 40, height: 10, damage: 20 }
+                ],
+                exitPortal: { x: 810, y: 250, width: 30, height: 50 },
+                playerStart: { x: 40, y: 350 },
+                flameDecay: 0.1
+            }
         ];
         
         // Drawing functions
@@ -474,6 +695,9 @@
             ctx.font = '20px Arial';
             ctx.fillText(`Score: ${gameState.score}`, 20, 30);
             
+            // Level indicator
+            ctx.fillText(`Level: ${gameState.level}`, 20, 60);
+            
             // Flame meter
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fillRect(canvas.width - 220, 20, 200, 20);
@@ -500,11 +724,17 @@
                 
                 ctx.font = '24px Arial';
                 ctx.fillText(`Final Score: ${gameState.score}`, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(`Reached Level: ${gameState.level}`, canvas.width / 2, canvas.height / 2 + 30);
                 
                 ctx.font = '20px Arial';
-                ctx.fillText('Tap to restart', canvas.width / 2, canvas.height / 2 + 40);
+                ctx.fillText('Tap to restart', canvas.width / 2, canvas.height / 2 + 70);
                 
                 ctx.textAlign = 'left';
+            }
+            
+            // Level transition screen
+            if (gameState.levelComplete) {
+                drawLevelTransition();
             }
         }
         
@@ -517,18 +747,25 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             if (gameState.active) {
-                // Draw background with darkness effect
-                ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Update player
-                player.update();
-                
-                // Draw game elements
-                platforms.forEach(drawPlatform);
-                candles.forEach(drawCandle);
-                shadowEnemies.forEach(drawShadowEnemy);
-                player.draw();
+                if (gameState.levelComplete) {
+                    // Show level transition
+                    drawLevelTransition();
+                } else {
+                    // Draw background with darkness effect
+                    ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Update player
+                    player.update();
+                    
+                    // Draw game elements
+                    platforms.forEach(drawPlatform);
+                    candles.forEach(drawCandle);
+                    shadowEnemies.forEach(drawShadowEnemy);
+                    hurdles.forEach(drawHurdle);
+                    drawExitPortal(exitPortal);
+                    player.draw();
+                }
             }
             
             // Draw UI
@@ -544,27 +781,31 @@
             gameState = {
                 active: true,
                 score: 0,
-                flameSize: 100
+                flameSize: 100,
+                level: 1,
+                levelComplete: false,
+                gameComplete: false
             };
             
-            // Reset player
-            player.x = 100;
-            player.y = 350;
-            player.velocityX = 0;
-            player.velocityY = 0;
-            
-            // Reset candles
-            candles.length = 0;
-            candles.push(
-                { x: 300, y: 320, width: 10, height: 30 },
-                { x: 500, y: 270, width: 10, height: 30 },
-                { x: 700, y: 220, width: 10, height: 30 }
-            );
+            // Load first level
+            loadLevel(1);
             
             // Start animation
             if (!animationId) {
                 lastTime = 0;
                 animationId = requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        // Continue to next level
+        function continueToNextLevel() {
+            if (gameState.gameComplete) {
+                // Start a new game if completed
+                startGame();
+            } else {
+                // Load next level
+                loadLevel(gameState.level);
+                gameState.flameSize = 100; // Refill flame for new level
             }
         }
         
