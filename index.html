@@ -1258,23 +1258,20 @@
             
             // Menu buttons
                 startButton.addEventListener('click', function() {
-                    console.log('Start button clicked!');
-                    console.log('Menu Screen:', menuScreen);
-                    console.log('Canvas:', canvas);
-                    console.log('Game Container:', gameContainer);
-                
-                    try {
-                        menuScreen.style.display = 'none';
-                        score = 0;
-                        level = 1;
-                        loadLevel(1);
-                        gameActive = true;
-                        lastTime = 0;
-                        animationId = requestAnimationFrame(gameLoop);
-                        console.log('Game started successfully');
-                    } catch (error) {
-                        console.error('Error starting game:', error);
-                    }
+                    alert('Start button clicked!'); // Use an alert instead of console.log
+                    
+                    console.log('Button:', startButton);
+                    console.log('Menu Screen Display:', menuScreen.style.display);
+                    
+                    debugger; // This will pause execution in developer tools
+                    
+                    menuScreen.style.display = 'none';
+                    score = 0;
+                    level = 1;
+                    loadLevel(1);
+                    gameActive = true;
+                    lastTime = 0;
+                    animationId = requestAnimationFrame(gameLoop);
                 });
             
             restartButton.addEventListener('click', function() {
