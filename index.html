@@ -1,386 +1,8 @@
-// Game management functions
-            function loadLevel(levelNum) {
-                if (levelNum > levels.length) {
-                    gameState.gameComplete = true;
-                    return;
-                }
-                
-                const level = levels[levelNum - 1];
-                
-                // Clear existing entities
-                platforms = [];
-                candles = [];
-                enemies = [];
-                powerUps = [];
-                
-                // Load level entities
-                platforms = JSON.parse(JSON.stringify(level.platforms));
-                candles = JSON.parse(JSON.stringify(level.candles));
-                enemies = JSON.parse(JSON.stringify(level.enemies));
-                powerUps = JSON.parse(JSON.stringify(level.powerUps));
-                exit = JSON.parse(JSON.stringify(level.exit));
-                
-                // Reset player
-                player.x = 50;
-                player.y = 300;
-                player.velocityX = 0;
-                player.velocityY = 0;
-                player.invincible = false;
-                player.flameMultiplier = 1;
-                player.speed = player.baseSpeed;
-                
-                // Reset power-up state
-                if (gameState.powerUp && powerUpTypes[gameState.powerUp]) {
-                    powerUpTypes[gameState.powerUp].remove();
-                }
-                gameState.powerUp = null;
-                gameState.powerUpTimeLeft = 0;
-                powerUpIndicator.style.display = 'none';
-                
-                // Set game state
-                gameState.flameSize = 100;
-                gameState.levelComplete = false;
-                gameState.active = true;
-            }
-            
-            function nextLevel() {
-                gameState.level++;
-                
-                if (gameState.level > levels.length) {
-                    // Game completed
-                    gameComplete();
-                } else {
-                    loadLevel(gameState.level);
-                    levelCompleteScreen.style.display = 'none';
-                }
-            }
-            
-            function gameOver() {
-                gameState.active = false;
-                
-                // Add score to high scores
-                highScores.push({
-                    score: gameState.score,
-                    level: gameState.level,
-                    date: new Date().toISOString()
-                    // Event listeners for controls
-            
-            // Toggle sound mute
-            muteButton.addEventListener('click', () => {
-                isMuted = !isMuted;
-                muteButton.textContent = isMuted ? '🔇' : '🔊';
-            });
-            
-            // Menu buttons
-            startButton.addEventListener('click', () => {
-                menuScreen.style.display = 'none';
-                gameState.active = true;
-                gameState.level = 1;
-                loadLevel(1);
-                lastTime = 0;
-                animationId = requestAnimationFrame(gameLoop);
-            });
-            
-            restartButton.addEventListener('click', () => {
-                gameOverScreen.style.display = 'none';
-                gameState.active = true;
-                gameState.score = 0;
-                gameState.level = 1;
-                loadLevel(1);
-            });
-            
-            menuButton.addEventListener('click', () => {
-                gameOverScreen.style.display = 'none';
-                menuScreen.style.display = 'flex';
-            });
-            
-            nextLevelButton.addEventListener('click', () => {
-                nextLevel();
-            });
-            
-            // Joystick control
-            const joystickContainer = document.getElementById('joystickContainer');
-            const joystick = document.getElementById('joystick');
-            const jumpBtn = document.getElementById('jumpBtn');
-            
-            let joystickActive = false;
-            let joystickStartX = 0;
-            let joystickStartY = 0;
-            let joystickX = 0;
-            let joystickY = 0;
-            const joystickMax = 35;
-            
-            joystickContainer.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = joystickContainer.getBoundingClientRect();
-                joystickStartX = touch.clientX - rect.left;
-                joystickStartY = touch.clientY - rect.top;
-                joystickActive = true;
-                
-                joystick.style.left = joystickStartX + 'px';
-                joystick.style.top = joystickStartY + 'px';
-                joystick.style.transform = 'translate(-50%, -50%)';
-            });
-            
-            joystickContainer.addEventListener('touchmove', (e) => {
-                if (!joystickActive) return;
-                e.preventDefault();
-                
-                const touch = e.touches[0];
-                const rect = joystickContainer.getBoundingClientRect();
-                joystickX = touch.clientX - rect.left - joystickStartX;
-                joystickY = touch.clientY - rect.top - joystickStartY;
-                
-                // Limit joystick movement to a circle
-                const distance = Math.sqrt(joystickX * joystickX + joystickY * joystickY);
-                if (distance > joystickMax) {
-                    joystickX = (joystickX / distance) * joystickMax;
-                    joystickY = (joystickY / distance) * joystickMax;
-                }
-                
-                // Update joystick position
-                joystick.style.transform = `translate(calc(-50% + ${joystickX}px), calc(-50% + ${joystickY}px))`;
-                
-                // Update player controls based on joystick position
-                if (joystickX < -10) {
-                    keys.left = true;
-                    keys.right = false;
-                } else if (joystickX > 10) {
-                    keys.right = true;
-                    keys.left = false;
-                } else {
-                    keys.left = false;
-                    keys.right = false;
-                }
-            });
-            
-            function resetJoystick() {
-                joystickActive = false;
-                joystickX = 0;
-                joystickY = 0;
-                keys.left = false;
-                keys.right = false;
-                joystick.style.transform = 'translate(-50%, -50%)';
-            }
-            
-            joystickContainer.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                resetJoystick();
-            });
-            
-            joystickContainer.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                resetJoystick();
-            });
-            
-            // Jump button
-            jumpBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                keys.up = true;
-            });
-            
-            jumpBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                keys.up = false;
-            });
-            
-            // Keyboard controls for desktop testing
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft') keys.left = true;
-                if (e.key === 'ArrowRight') keys.right = true;
-                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = true;
-                
-                // Start/restart game with Enter key
-                if (e.key === 'Enter') {
-                    if (menuScreen.style.display !== 'none') {
-                        startButton.click();
-                    } else if (gameOverScreen.style.display !== 'none') {
-                        restartButton.click();
-                    } else if (levelCompleteScreen.style.display !== 'none') {
-                        nextLevelButton.click();
-                    }
-                }
-                
-                // Toggle mute with M key
-                if (e.key === 'm') {
-                    muteButton.click();
-                }
-            });
-            
-            window.addEventListener('keyup', (e) => {
-                if (e.key === 'ArrowLeft') keys.left = false;
-                if (e.key === 'ArrowRight') keys.right = false;
-                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
-            });
-            
-            // Handle resize
-            window.addEventListener('resize', handleResize);
-            window.addEventListener('orientationchange', handleResize);
-            
-            // Initial setup
-            handleResize();
-            
-            // Game starts at the menu
-            menuScreen.style.display = 'flex';
-            gameOverScreen.style.display = 'none';
-            levelCompleteScreen.style.display = 'none';
-            updateHighScoresList();
-            
-            // For mobile device detection
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            if (isMobile) {
-                deviceInfo.textContent += ' (Mobile)';
-            } else {
-                deviceInfo.textContent += ' (Desktop)';
-            }
-            
-            // Test sounds once at low volume
-            const testSounds = () => {
-                const originalVolume = {};
-                
-                // Store original volumes
-                for (const sound in sounds) {
-                    originalVolume[sound] = sounds[sound].volume;
-                    sounds[sound].volume = 0.01; // Very low volume for testing
-                }
-                
-                // Play and immediately pause each sound
-                for (const sound in sounds) {
-                    const promise = sounds[sound].play();
-                    
-                    if (promise !== undefined) {
-                        promise.then(() => {
-                            sounds[sound].pause();
-                            sounds[sound].currentTime = 0;
-                            sounds[sound].volume = originalVolume[sound];
-                        }).catch(error => {
-                            // Autoplay prevented, set back volume
-                            sounds[sound].volume = originalVolume[sound];
-                        });
-                    }
-                }
-            };
-            
-            // Test sounds on first user interaction
-            gameContainer.addEventListener('click', function soundInit() {
-                testSounds();
-                gameContainer.removeEventListener('click', soundInit);
-            }, { once: true });
-        });
-                
-                // Save high scores to local storage
-                localStorage.setItem('stickManHighScores', JSON.stringify(highScores));
-                
-                // Update high scores display
-                updateHighScoresList();
-                
-                // Update game over screen
-                finalScore.textContent = `Score: ${gameState.score} - Level: ${gameState.level}`;
-                gameOverScreen.style.display = 'flex';
-                
-                // Play game over sound
-                if (!isMuted) sounds.gameOver.play();
-            }
-            
-            function gameComplete() {
-                gameState.active = false;
-                gameState.gameComplete = true;
-                
-                // Add score to high scores
-                highScores.push({
-                    score: gameState.score,
-                    level: gameState.level,
-                    date: new Date().toISOString()
-                });
-                
-                // Save high scores to local storage
-                localStorage.setItem('stickManHighScores', JSON.stringify(highScores));
-                
-                // Update high scores display
-                updateHighScoresList();
-                
-                // Update game over screen
-                finalScore.textContent = `GAME COMPLETED! Final Score: ${gameState.score}`;
-                gameOverScreen.style.display = 'flex';
-                
-                // Play level complete sound
-                if (!isMuted) sounds.levelComplete.play();
-            }
-            
-            // Game loop
-            function gameLoop(timestamp) {
-                const deltaTime = timestamp - lastTime;
-                lastTime = timestamp;
-                
-                if (!gameState.active) {
-                    // Don't update if game is not active
-                    return;
-                }
-                
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Get background color for current level
-                const levelBackground = levels[gameState.level - 1].background || '#222';
-                
-                // Draw background
-                ctx.fillStyle = levelBackground;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw level elements
-                if (!gameState.levelComplete) {
-                    platforms.forEach(drawPlatform);
-                    candles.forEach(drawCandle);
-                    enemies.forEach(drawEnemy);
-                    powerUps.forEach(drawPowerUp);
-                    drawExit(exit);
-                    
-                    // Update and draw player
-                    player.update();
-                    player.draw();
-                    
-                    // Draw UI elements
-                    drawUI();
-                }
-                
-                // Continue animation
-                animationId = requestAnimationFrame(gameLoop);
-            }
-            
-            // Handle screen resizing
-            function handleResize() {
-                const container = gameContainer;
-                const containerWidth = container.clientWidth;
-                const containerHeight = container.clientHeight;
-                
-                const aspectRatio = canvas.width / canvas.height;
-                const containerRatio = containerWidth / containerHeight;
-                
-                let scale, newWidth, newHeight;
-                
-                if (containerRatio > aspectRatio) {
-                    // Container is wider than game
-                    scale = containerHeight / canvas.height;
-                    newWidth = canvas.width * scale;
-                    newHeight = containerHeight;
-                } else {
-                    // Container is taller than game
-                    scale = containerWidth / canvas.width;
-                    newWidth = containerWidth;
-                    newHeight = canvas.height * scale;
-                }
-                
-                canvas.style.width = `${newWidth}px`;
-                canvas.style.height = `${newHeight}px`;
-                
-                // Update device info for debugging
-                deviceInfo.textContent = `${window.innerWidth}x${window.innerHeight}, ${window.devicePixelRatio}x, Scale: ${scale.toFixed(2)}`;
-            }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Stick Man Game</title>
     <style>
         body {
@@ -392,22 +14,14 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: 'Arial', sans-serif;
+            font-family: Arial, sans-serif;
             touch-action: none;
         }
-        #gameContainer {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            max-width: 800px;
-            max-height: 450px;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-            background-color: #222;
+        #gameCanvas {
+            background: #222;
             max-width: 100%;
-            max-height: 100%;
+            max-height: 100vh;
+            touch-action: none;
         }
         #controls {
             position: absolute;
@@ -417,14 +31,15 @@
             justify-content: space-between;
             padding: 0 30px;
             box-sizing: border-box;
-            z-index: 10;
+            pointer-events: none;
         }
-        #joystickContainer {
+        #joystickArea {
             width: 120px;
             height: 120px;
             background-color: rgba(255,255,255,0.1);
             border-radius: 50%;
             position: relative;
+            pointer-events: auto;
         }
         #joystick {
             width: 50px;
@@ -436,7 +51,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
         }
-        .control-btn {
+        #jumpBtn {
             width: 100px;
             height: 60px;
             background-color: rgba(255,255,255,0.3);
@@ -447,169 +62,655 @@
             font-size: 20px;
             color: white;
             user-select: none;
-        }
-        #menuScreen, #gameOverScreen, #levelCompleteScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 20;
-        }
-        #gameOverScreen, #levelCompleteScreen {
-            display: none;
-        }
-        h1 {
-            color: #ff4500;
-            font-size: 36px;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(255, 100, 0, 0.7);
-        }
-        h2 {
-            color: white;
-            font-size: 24px;
-            margin-bottom: 30px;
-        }
-        .menu-btn {
-            background-color: #ff4500;
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            margin: 10px;
-            border-radius: 5px;
-            font-size: 18px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .menu-btn:hover {
-            background-color: #ff6a33;
-            transform: scale(1.05);
-        }
-        #highScores {
-            color: white;
-            margin-top: 20px;
-            text-align: center;
-        }
-        #highScores h3 {
-            color: #ff4500;
-            margin-bottom: 10px;
-        }
-        #deviceInfo {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: rgba(255,255,255,0.5);
-            font-size: 12px;
-        }
-        #muteButton {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 30px;
-            height: 30px;
-            background-color: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 16px;
-            z-index: 10;
-        }
-        #powerUpIndicator {
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            padding: 5px 10px;
-            background-color: rgba(255,255,255,0.2);
-            color: white;
-            border-radius: 10px;
-            font-size: 14px;
-            display: none;
-            z-index: 10;
+            pointer-events: auto;
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        
-        <div id="menuScreen">
-            <h1>STICK MAN</h1>
-            <h2>The Flame Walker</h2>
-            <button id="startButton" class="menu-btn">START GAME</button>
-            <div id="highScores">
-                <h3>HIGH SCORES</h3>
-                <div id="highScoresList"></div>
-            </div>
-        </div>
-        
-        <div id="gameOverScreen">
-            <h1>GAME OVER</h1>
-            <h2 id="finalScore">Score: 0</h2>
-            <button id="restartButton" class="menu-btn">PLAY AGAIN</button>
-            <button id="menuButton" class="menu-btn">MAIN MENU</button>
-        </div>
-        
-        <div id="levelCompleteScreen">
-            <h1>LEVEL COMPLETE!</h1>
-            <h2 id="levelScore">Score: 0</h2>
-            <button id="nextLevelButton" class="menu-btn">NEXT LEVEL</button>
-        </div>
-        
-        <div id="controls">
-            <div id="joystickContainer">
-                <div id="joystick"></div>
-            </div>
-            <div class="control-btn" id="jumpBtn">JUMP</div>
-        </div>
-        
-        <div id="muteButton">🔊</div>
-        <div id="powerUpIndicator"></div>
-        <div id="deviceInfo"></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <div id="joystickArea"><div id="joystick"></div></div>
+        <div id="jumpBtn">JUMP</div>
     </div>
 
     <script>
-        // Wait for everything to load
-        window.addEventListener('load', function() {
-            // Game elements
-            const gameContainer = document.getElementById('gameContainer');
+        document.addEventListener('DOMContentLoaded', function() {
+            // Canvas setup
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
             
-            // UI elements
-            const menuScreen = document.getElementById('menuScreen');
-            const gameOverScreen = document.getElementById('gameOverScreen');
-            const levelCompleteScreen = document.getElementById('levelCompleteScreen');
-            const startButton = document.getElementById('startButton');
-            const restartButton = document.getElementById('restartButton');
-            const menuButton = document.getElementById('menuButton');
-            const nextLevelButton = document.getElementById('nextLevelButton');
-            const finalScore = document.getElementById('finalScore');
-            const levelScore = document.getElementById('levelScore');
-            const highScoresList = document.getElementById('highScoresList');
-            const muteButton = document.getElementById('muteButton');
-            const powerUpIndicator = document.getElementById('powerUpIndicator');
-            const deviceInfo = document.getElementById('deviceInfo');
-            
-            // Set canvas size
+            // Set fixed game size
             canvas.width = 800;
             canvas.height = 450;
             
-            // Show device info for debugging
-            deviceInfo.textContent = `${window.innerWidth}x${window.innerHeight}, ${window.devicePixelRatio}x`;
+            // Game variables
+            let score = 0;
+            let level = 1;
+            let flameSize = 100;
+            let gameActive = true;
             
-            // Audio
-            let soundsEnabled = true;
-            const sounds = {
-                jump: new Audio('data:audio/wav;base64,UklGRqQEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YYAEAACAgICAgICAgICAgICAgICAgICAgICBAoGBgoKEhIWEhoYIiYqKCYoLjA2MlpaWmJmZnJydnZ+goKGjoqSmqKqpqaiop6ioqaqoqaqqpqejpKCfnaKem5qYl5qVlJKRjo2LioiIh4WCf34hfHt3eHZzcnBsaVxVT05JSUdGQ0JALC0nJiQkIiEfHRwbGhkYFxYVFBMSERAODQwLCgkIBwYFBAMCAQAAAAECAwQGBwkLC57AwMC/wMC/wMC/w8bP0NTa3+Tp7fH1+fr9/v8AAQIEBQYICAoLDQ4QERMUFRcYGhscHR8hIiQmJygpKSwuMDEzNTc5PUBCREVISE1PUlZZXF9iZWlsb3N2en2Bg4aKjpGVmJqeoqarrK+ztbi8wMTIy87S1tnd4ebq7PHy8/b3+Pn5+vr7+/z8/f39/v7+/v///v7+/v7+/v7+/v7+/v7+/v3+/v39/f39/fz9/Pz8/Pz7/Pv6+vr6+fr6+fr5+vn5+fn5+vn6+vr6+vv7+/v7+vv7+/v7/Pz8/Pz8/P38/f3+/v79/v////8AAAAAAAAAAAAAAAAAAAAAAAABAgMDAwQGBggICQsNDg8QEBETFRUYGRocHh4fICIjJCYnKCosLS0vMDE0NTc4Ojo8PT5AQUNFR0hKTU5QUVNUV1haW1xeYGFjZWZnaWptbW9xcnR2d3l6fH6Bg4SGiImLjI6PkZKUlZeYmZudnqCio6SmqKmrra6wsrS1t7m7vL7AwcPFx8jKy83P0tTW19ja29zd3+Dh4uPk5OXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5OPi4eDe3NrZ1tTTz83MysnHxsXEw8PCwcDAvr27urm3trOysa+trKqpqKalpKOioaCfnp2cm5mYl5aVlJOSkI+OjYyLioiHhoWEg4KBgH9+fXx7enl4d3Z1dHNyb21sa2pqaWhnZmVkY2JhYF9eXVxbWllYV1ZVVFNSUVA/Pj08Ozo5ODc2NTQyMTEvLi0sKyopKCcmJSQjIiEgHx4dHBsaGRkYFxYVFBMSERAPDg0MCwoJCAcGBQUEAwICAQDLzcvLy8rDwzzAvb6/v7/AwMDCwcK+vLu6ube0tbOwsq+sq6iooaCel5aTkJKNi4qHhYR+fnt4d3Z0cnJwbmtqaWhlZGJhX15dW1paWVhXVlZVVFNTUlJRUE9OTUxMS0pJR0ZFRENCQkA/Pj49PDs6OTg3NjU0MzMyMTAwLi0tKyopKCcmJSUkIyIiISAfHx4dHBwbGhkZGBcXFhUVFBMSEhEQDw8ODQwLCwoJCQgHBgYFBAMDAgEBAICAAAD//wEAAgQA'),
-                collect: new Audio('data:audio/wav;base64,UklGRnYDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YVABAAB0eXp8fYGAgIGEg4SHhoeMi4uPjZGQk5KXlZidnJ+eoaOmqqmsrrCwsrS3t7i4uLi6u7u6urq7uLe2tLKurayppKCcmpWRjYmGf3t3dG9raGFdVlJLRkE4MisdDgb8AfP4+/b28/Tz9fv++QUGCxclJzEzPD1ERkhKTE9WVl1eX2JmZ25ucHBwbWxpZ2JgW1dTTUlGQDs0LSccGBEMBP4C+vj3APoBAwcIDxQYHyInKy4xNDc6PDw9PDs7OTg2MzAtKiYjHhoWEQ0JBgIB//z6+PX08/Lz8/T19fb3+Pn6+/v7+vn6+vr5+fj39/f3+Pn6/f8CBAcKDhEVGR0hJSktMDM3Oz9DSHZ6fH6DgoaGio2QkpWZm52hpKWrr7G0t7e4uri3tbSyraqmop6YlI+KhX97eHFtaWVgW1ZRTEhCPDcxKyUfGRMOCAP//Pv5/Pz9/gEEBwwRFRwgJCksLzI2Ojs/QkRFR0VEQ0JBPj06Nzg4ODc0MjAtLCopKSopKissLS4vLzAvMC8uLSwrKignJSMhHx0bGhkXFhUUEhEQDw4NDAwNDQ4PEBITFBUYGRsdICIkJyotLzI0lpeZmpyen6ChpKWmqKmqq6eoqKmoqaiop6alpKOioJ+em5qZl5aUkpGPjoyLioiHhoSEg4KBgIB/fn59fHx7fHt6enp5eXl5eXl5eXl6enp6e3t8fHx9fX1+fn5/f4CAgIGBgoKDg4OEhIWFhoaGh4eIiImJiYqLi4uMjI6OjpCQkZGSk5OVlZaXmJmampucnZ6en6ChoqOkpaanqKmqqqutra6vr7GxsrO0tLW1tre3uLm5urq7vLy9vsQ+QklUZ5iou3TLy0+z5M9Jv3N9KhZlKI2Fq2+oPZlZy+Gjpw02xqTRe7Xp70t4VD9RNZ59fI4hMUofJEsgYS8mWtfTztfPqwbJDrpf0JAgzXrQWGw0C/sH2xEAyj4FzWDQmS7NVs8LcDn0Eyay0I/Qn9BSrjvwFSjB0K/P+c9ktR3/AwA='),
-                powerUp: new Audio('data:audio/wav;base64,UklGRqwCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YYgCAAAgICAgICAgFRUFBQUMEhcdHR0dHR0XHR0dHR0XCwcBAAAAAAAAYWJoZ2FgXmlwfX9+c25cWkw+NCobAgAAAAANFiozP09WYXB8homGhX17cGdbTkAuIRkQBvvY+Pj//A0iLj1MV2NvdXl5dnBoWkxAMSYYCvz8+v///v/9/f4CBAsVHigxPE9ZXWVveXNwcXRvamJXSz8yJRwMD/z5+uz2+vn9AQ0SISw1QVFaZmxydnp8dXJmXlZMPzQpGxQHDPsDAgACCA4XIScvOUNMVl5mbnR4enp5cGdiWE9GPTYsIRgNCf3m9ejy+vwABBEZJi86SlVcYmdpbGpnY1hOQjQrHxYJBQoEBwj9AQULEBkhLjZCSlFaYWZqbGxqZ19XTko+NCsiGAwCAe38BoIBBQoQFh4kKjI6QklRWF5iaWlqaGZgWlVPSENANzMrKCMdGREKBP757+vr7O/1+QEJERggKjE4Oz8/QD46NjAnIBkRCgf/8Ofo6+3y9/wFDhYcIycqKy0sKykpJSMfHBkVEA0IBf/67ejl6Ont9PoABg4VGR4gIyMjIB4bGBUQDQsJBAD79/Ty8vP2+P0BBgoOEBITExMSEQ4NDAoIBwYEAvv49/Py8vH09fr////8AAAA//39/Pv8/Pz8/f7+/v///////v7+/v7//v7+/v/////////////+/v7+/v7+/v7//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
-                damage: new Audio('data:audio/wav;base64,UklGRnADAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YZADAAABAQMFBQUJDQ0QExQZHR4jJigsLTI2ODtBREhMUVZaXGBjZ2lrbXBydXd5fH1/gIGChIOFhISDg4KCgYB/fXt6eHd1c3FvbmxqaGdlYmBfXVtZV1ZUVFNUV1NiX3KKiaicqJiakJGJhoOAfXt5d3VzcnBvbWxramlnZ2ZlZWRjYWBfXl1cW1tZWVpVZGB0iZCgr7vA0dTc3ODb1s/KxcC8uLOuqqWgnJmVkY2MiH5/e3x1eG9xaGtlaWFkX2JaXVdaU1RRUEpKRkRCQD48OTc2MzIwLy0sKikmJNra2tnZ2drZ2dra2trc3d3d3t/f4OHi4+Tk5OTk5OPj4+Pi4uHh4ODf397e3dzcwR9nGnPTYBu7P+j3XD/JVR7n1zcGPxTG9i7iP90c3PjU7ZoCKdwjbQIe8dDVLe040tfA1+ba3Ovw/gEFCQ0PEhEUEhUTFBITEBEPDg0LCAYEAD7vO+Hf+iTM+z3Axs7Gz9PRz9DPzcvLyMbCwr++urm1tLGxrq2pVkJPQURDR0VIRkhGRkVEQkE/Pz08Ozk3NzQyMS8tLi0qKigmJSYkIiEfHh0cGxoZGBcWFRQTEhEQDw4NDAsKCQgHBgUEAwIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgUHCQwPExYZHB8iJSgtMDQ4O0BDR0pOUlZZXWBkaGtvdHl9gYWIjI+Tl5qdoaWoq66xtLe6vcDCxMbIycrMzc7Q0dHS09TV1tbX19jY2dnZ2trb29vb3Nzc3d3e3t7e39/g4OHg4eHh4uLj4+Pj4+Tk5OTl5eXl5eXl5ubn5+fn5+fo6Ojo6Ojo6Ojq6Ojp6uro6enp6ejo6Ofn5+fm5ubm5eXl5OTk4+Pi4eHg4N/f3t7d3dzc29va2dnZ2NjX1tbV1NPT0tHQz87OzcvLysnIx8bFxMPCwcC/vr28u7q5uLe2tbSzsrGwr66trKuqqainpqWko6OioaGgoJ+enp2dnJybm5qZmZiYmJeXlpaWlZWUlJSTk5KSkpGRkZGQkJCPj4+Oj46OjY2NjY2MjIyMjIuLi4uKiouKioqKioqJiYmJiYmJiYmJiImIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiA=='),
-                levelComplete: new Audio('data:audio/wav;base64,UklGRnQGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YVAGAAC3uMDAwMDBwsTCxMTGzM7P0NPT09PT09PT1NXU1tbW19nY2dfX1dPS0dHQ0NDQ09TW2Nna29vb2tra2tra2tra29zb3Nzc3d3c29vb3Nzc3Nzc3d3c3d7d3d3d3d3d3d3d3d3d3d3d3d3d3dzc3d3c3Nvc3d3c3Nzc3Nzc3NvY1tbU09HS0c/Ny8nGxcLAvr27urq6uLa2s7KysbGvrq6urq+vsbKzs7W2t7i4urq6uru7u727ubm4trW0s7KxsK6trKqqqqmop6alpKSjoqKioqGioqKio6SlpaanqKmqq6usrK2urq+vr7CwsLGxsbGxsrGxsbGxsbGxsbGxsrKys7OztLS0tba1tra2tra2tra2tra2tra2trW1tbW1tLS0tLS0s7OzsrKysrGxsbGwsLCvsK+vr6+vsLCwsbGysrKzs7S0tba2t7e4uLm5urq7u7y8vb29vr6/v7+/wMDAwMDAwcHBwcHCwsLDw8PExMTFxcXGxsbGx8fHx8jIyMjIyMjJycnJycnJycnKysrKysrLy8vKysrKysrKysrKysrKysrKysrKysrKysnJycjIyMjIyMjHx8fHx8bGxsbGxcXFxcXExMTEw8PDw8LCwsLCwcHBwcDAwMC/v7+/vr6+vr29vb28vLy8u7u7u7u6urq6ubm5ubm4uLi4uLe3t7e3tre2tra2tbW1tbW0tLS0tLS0s7OzsrKysrKysbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsrKysrKysrKysrOzs7Ozs7O0tLS0tLS0tLS1tbW1tbW1tba2tra2tre3t7e3uLi4uLi4uLm5ubm5urq6urq7u7u7u7u8vLy8vL29vb29vr6+vr6/v7+/v7/AwMDAwMDAwMHBwcHBwcHCwsLCwsLCw8PDw8PDw8PExMTExMTExMXFxcXFxcXGxsbGxsbGxsbHx8fHx8fHx8fIyMjIyMjIyMjIyMjIyMjIyMnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fGxsbGxsbGxsbGxsbGxsbFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXExMTExMTExMTExMTExMTExMTExMTDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8jIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyco='),
-                gameOver: new Audio('data:audio/wav;base64,UklGRtAEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YawEAAD///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wBAQMEBggJCw0PERMVFxkbHR8hIyUnKSssLjAyNDY4Ojs9P0FCREZISktNTlBSVFVXWVpcXmBiZGVnaWtsbnBydHV3eXt9f4CCg4WGiImLjI6PkZKUlZeYmZqdnp+ho6Slp6ipq62ur7GztLW3uLq7vb7AwcLExcfIycrMzc/Q0tPV1tfY2tzd3t/h4uTl5ufo6evs7e/w8fP09fb4+fr7/P3+//vx+AcJAQIACvbfDQICDw8N+uYBGQwFFxEN7eoQGQoHDw0D8PQGCQYADAH1+PoEAf39AAL7/AAABP8AAPwEBgQCBP76/QgKAAIE/vv/AAAA/f77+v7+AAAAAgUDAgQBAAH//f3+/P3//wEABQYEAgD//wADBgcFBQMAAQH+/fz9/f7/AQEEBAIB//8AAAABAgMEAwIBAP////7//wAAAQICAgEA/wAAAAECAgMCAQAA//////////8AAAABAQEAAAAAAAAAAAAAAQEB
+            // Controls
+            const keys = {
+                left: false,
+                right: false,
+                up: false
+            };
+            
+            // Player
+            const player = {
+                x: 100,
+                y: 350,
+                width: 20,
+                height: 40,
+                velocityX: 0,
+                velocityY: 0,
+                speed: 5,
+                jumpForce: 12,
+                isJumping: false,
+                walkFrame: 0,
+                walkCycle: 0,
+                facing: 1, // 1 = right, -1 = left
+                
+                update() {
+                    // Apply gravity
+                    this.velocityY += 0.5;
+                    
+                    // Apply movement
+                    if (keys.left) {
+                        this.velocityX = -this.speed;
+                        this.facing = -1;
+                        this.walkCycle += 0.15;
+                    } else if (keys.right) {
+                        this.velocityX = this.speed;
+                        this.facing = 1;
+                        this.walkCycle += 0.15;
+                    } else {
+                        this.velocityX = 0;
+                        this.walkCycle = 0;
+                    }
+                    
+                    // Calculate walk frame
+                    this.walkFrame = Math.floor(this.walkCycle) % 4;
+                    
+                    // Apply jump
+                    if (keys.up && !this.isJumping) {
+                        this.velocityY = -this.jumpForce;
+                        this.isJumping = true;
+                    }
+                    
+                    // Update position
+                    this.x += this.velocityX;
+                    this.y += this.velocityY;
+                    
+                    // Platform collision
+                    platforms.forEach(platform => {
+                        if (
+                            this.x + this.width > platform.x &&
+                            this.x < platform.x + platform.width &&
+                            this.y + this.height > platform.y &&
+                            this.y + this.height < platform.y + 10 &&
+                            this.velocityY > 0
+                        ) {
+                            this.y = platform.y - this.height;
+                            this.velocityY = 0;
+                            this.isJumping = false;
+                        }
+                    });
+                    
+                    // Candle collision
+                    for (let i = candles.length - 1; i >= 0; i--) {
+                        const candle = candles[i];
+                        if (
+                            this.x + this.width > candle.x &&
+                            this.x < candle.x + candle.width &&
+                            this.y + this.height > candle.y &&
+                            this.y < candle.y + candle.height
+                        ) {
+                            flameSize = Math.min(100, flameSize + 20);
+                            score += 10;
+                            candles.splice(i, 1);
+                        }
+                    }
+                    
+                    // Enemy collision
+                    enemies.forEach(enemy => {
+                        if (
+                            this.x + this.width > enemy.x &&
+                            this.x < enemy.x + enemy.width &&
+                            this.y + this.height > enemy.y &&
+                            this.y < enemy.y + enemy.height
+                        ) {
+                            flameSize = Math.max(0, flameSize - 1);
+                        }
+                    });
+                    
+                    // Exit collision
+                    if (
+                        this.x + this.width > exit.x &&
+                        this.x < exit.x + exit.width &&
+                        this.y + this.height > exit.y &&
+                        this.y < exit.y + exit.height
+                    ) {
+                        level++;
+                        loadLevel(level);
+                    }
+                    
+                    // Boundaries
+                    if (this.x < 0) this.x = 0;
+                    if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                    if (this.y + this.height > canvas.height) {
+                        this.y = canvas.height - this.height;
+                        this.velocityY = 0;
+                        this.isJumping = false;
+                    }
+                    
+                    // Decrease flame over time
+                    flameSize = Math.max(0, flameSize - 0.05);
+                    
+                    // Check if game over
+                    if (flameSize <= 0) {
+                        gameActive = false;
+                    }
+                },
+                
+                draw() {
+                    // Glow effect based on flame size
+                    const radius = 80 * (flameSize / 100);
+                    const gradient = ctx.createRadialGradient(
+                        this.x + this.width/2, 
+                        this.y - 15, 
+                        0, 
+                        this.x + this.width/2, 
+                        this.y - 15, 
+                        radius
+                    );
+                    gradient.addColorStop(0, 'rgba(255, 200, 100, 0.8)');
+                    gradient.addColorStop(1, 'rgba(255, 200, 100, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(
+                        this.x + this.width/2, 
+                        this.y - 15, 
+                        radius, 
+                        0, 
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Stick figure
+                    ctx.strokeStyle = 'red';
+                    ctx.lineWidth = 2;
+                    
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(
+                        this.x + this.width/2, 
+                        this.y, 
+                        10, 
+                        0, 
+                        Math.PI * 2
+                    );
+                    ctx.stroke();
+                    
+                    // Body
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width/2, this.y + 10);
+                    ctx.lineTo(this.x + this.width/2, this.y + 30);
+                    ctx.stroke();
+                    
+                    // Arms and legs with simple animation
+                    if (this.velocityX !== 0 && !this.isJumping) {
+                        // Walking animation
+                        const frameOffset = this.walkFrame / 2;
+                        
+                        // Arms
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2, this.y + 15);
+                        ctx.lineTo(this.x + this.width/2 - 10, this.y + 15 - 5 * frameOffset);
+                        ctx.moveTo(this.x + this.width/2, this.y + 15);
+                        ctx.lineTo(this.x + this.width/2 + 10, this.y + 15 + 5 * frameOffset);
+                        ctx.stroke();
+                        
+                        // Legs
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2, this.y + 30);
+                        ctx.lineTo(this.x + this.width/2 - 8, this.y + 40 - 5 * frameOffset);
+                        ctx.moveTo(this.x + this.width/2, this.y + 30);
+                        ctx.lineTo(this.x + this.width/2 + 8, this.y + 40 + 5 * frameOffset);
+                        ctx.stroke();
+                    } else {
+                        // Static pose for standing or jumping
+                        // Arms
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2 - 10, this.y + 15);
+                        ctx.lineTo(this.x + this.width/2, this.y + 15);
+                        ctx.lineTo(this.x + this.width/2 + 10, this.y + 15);
+                        ctx.stroke();
+                        
+                        // Legs
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2, this.y + 30);
+                        ctx.lineTo(this.x + this.width/2 - 8, this.y + 40);
+                        ctx.moveTo(this.x + this.width/2, this.y + 30);
+                        ctx.lineTo(this.x + this.width/2 + 8, this.y + 40);
+                        ctx.stroke();
+                    }
+                    
+                    // Flame on head
+                    const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width/2 - 5, this.y - 10);
+                    ctx.quadraticCurveTo(
+                        this.x + this.width/2, 
+                        this.y - 10 - flameHeight, 
+                        this.x + this.width/2 + 5, 
+                        this.y - 10
+                    );
+                    ctx.fillStyle = 'orange';
+                    ctx.fill();
+                    
+                    // Inner flame
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width/2 - 3, this.y - 10);
+                    ctx.quadraticCurveTo(
+                        this.x + this.width/2, 
+                        this.y - 10 - flameHeight * 0.7, 
+                        this.x + this.width/2 + 3, 
+                        this.y - 10
+                    );
+                    ctx.fillStyle = 'yellow';
+                    ctx.fill();
+                }
+            };
+            
+            // Level designs
+            const levelDesigns = [
+                // Level 1
+                {
+                    platforms: [
+                        { x: 0, y: 400, width: 200, height: 20 },
+                        { x: 250, y: 350, width: 150, height: 20 },
+                        { x: 450, y: 300, width: 150, height: 20 },
+                        { x: 650, y: 250, width: 150, height: 20 }
+                    ],
+                    candles: [
+                        { x: 300, y: 320, width: 10, height: 30 },
+                        { x: 500, y: 270, width: 10, height: 30 },
+                        { x: 700, y: 220, width: 10, height: 30 }
+                    ],
+                    enemies: [
+                        { x: 200, y: 370, width: 20, height: 30, direction: 1, speed: 1 }
+                    ],
+                    exit: { x: 750, y: 200, width: 30, height: 50 }
+                },
+                // Level 2
+                {
+                    platforms: [
+                        { x: 0, y: 400, width: 100, height: 20 },
+                        { x: 150, y: 350, width: 100, height: 20 },
+                        { x: 300, y: 300, width: 100, height: 20 },
+                        { x: 450, y: 350, width: 100, height: 20 },
+                        { x: 600, y: 400, width: 100, height: 20 },
+                        { x: 750, y: 350, width: 50, height: 20 }
+                    ],
+                    candles: [
+                        { x: 150, y: 320, width: 10, height: 30 },
+                        { x: 300, y: 270, width: 10, height: 30 },
+                        { x: 450, y: 320, width: 10, height: 30 },
+                        { x: 600, y: 370, width: 10, height: 30 },
+                        { x: 750, y: 320, width: 10, height: 30 }
+                    ],
+                    enemies: [
+                        { x: 300, y: 270, width: 20, height: 30, direction: 1, speed: 1.5 },
+                        { x: 600, y: 370, width: 20, height: 30, direction: -1, speed: 1.5 }
+                    ],
+                    exit: { x: 750, y: 300, width: 30, height: 50 }
+                },
+                // Level 3
+                {
+                    platforms: [
+                        { x: 0, y: 400, width: 80, height: 20 },
+                        { x: 130, y: 350, width: 80, height: 20 },
+                        { x: 260, y: 300, width: 80, height: 20 },
+                        { x: 390, y: 250, width: 80, height: 20 },
+                        { x: 520, y: 200, width: 80, height: 20 },
+                        { x: 650, y: 250, width: 80, height: 20 },
+                        { x: 780, y: 300, width: 20, height: 20 }
+                    ],
+                    candles: [
+                        { x: 130, y: 320, width: 10, height: 30 },
+                        { x: 260, y: 270, width: 10, height: 30 },
+                        { x: 390, y: 220, width: 10, height: 30 },
+                        { x: 520, y: 170, width: 10, height: 30 },
+                        { x: 650, y: 220, width: 10, height: 30 }
+                    ],
+                    enemies: [
+                        { x: 130, y: 320, width: 20, height: 30, direction: 1, speed: 2 },
+                        { x: 390, y: 220, width: 20, height: 30, direction: -1, speed: 2 }
+                    ],
+                    exit: { x: 780, y: 250, width: 20, height: 50 }
+                }
+            ];
+            
+            // Game entities
+            let platforms = [];
+            let candles = [];
+            let enemies = [];
+            let exit = {};
+            
+            // Load level
+            function loadLevel(levelNum) {
+                // Reset game if completed all levels
+                if (levelNum > levelDesigns.length) {
+                    level = 1;
+                    score = 0;
+                    levelNum = 1;
+                }
+                
+                const design = levelDesigns[levelNum - 1];
+                
+                platforms = JSON.parse(JSON.stringify(design.platforms));
+                candles = JSON.parse(JSON.stringify(design.candles));
+                enemies = JSON.parse(JSON.stringify(design.enemies));
+                exit = JSON.parse(JSON.stringify(design.exit));
+                
+                // Reset player position
+                player.x = 50;
+                player.y = 350;
+                player.velocityX = 0;
+                player.velocityY = 0;
+                
+                // Reset flame
+                flameSize = 100;
+                
+                // Reset game state
+                gameActive = true;
+            }
+            
+            // Drawing functions
+            function drawPlatform(platform) {
+                ctx.fillStyle = '#555';
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            }
+            
+            function drawCandle(candle) {
+                // Candle base
+                ctx.fillStyle = '#f5f5dc';
+                ctx.fillRect(candle.x, candle.y, candle.width, candle.height);
+                
+                // Flame
+                const flameHeight = 10 + Math.sin(Date.now() / 200) * 3;
+                ctx.beginPath();
+                ctx.moveTo(candle.x, candle.y);
+                ctx.quadraticCurveTo(
+                    candle.x + candle.width/2, 
+                    candle.y - flameHeight, 
+                    candle.x + candle.width, 
+                    candle.y
+                );
+                ctx.fillStyle = 'orange';
+                ctx.fill();
+            }
+            
+            function drawEnemy(enemy) {
+                // Shadow enemy
+                ctx.fillStyle = '#000';
+                
+                // Body
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                
+                // Head
+                ctx.beginPath();
+                ctx.arc(
+                    enemy.x + enemy.width/2, 
+                    enemy.y - 5, 
+                    10, 
+                    0, 
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Update position
+                enemy.x += enemy.direction * enemy.speed;
+                
+                // Find platform this enemy is on
+                let enemyPlatform = null;
+                platforms.forEach(platform => {
+                    if (enemy.x + enemy.width/2 >= platform.x && 
+                        enemy.x + enemy.width/2 <= platform.x + platform.width && 
+                        enemy.y + enemy.height >= platform.y &&
+                        enemy.y + enemy.height <= platform.y + 10) {
+                        enemyPlatform = platform;
+                    }
+                });
+                
+                // Change direction at platform edges or walls
+                if (enemyPlatform) {
+                    if (enemy.x <= enemyPlatform.x || enemy.x + enemy.width >= enemyPlatform.x + enemyPlatform.width) {
+                        enemy.direction *= -1;
+                    }
+                } else if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
+                    enemy.direction *= -1;
+                }
+            }
+            
+            function drawExit(exit) {
+                // Portal
+                const gradient = ctx.createRadialGradient(
+                    exit.x + exit.width/2, 
+                    exit.y + exit.height/2, 
+                    5,
+                    exit.x + exit.width/2, 
+                    exit.y + exit.height/2, 
+                    exit.width
+                );
+                
+                gradient.addColorStop(0, 'rgba(0, 255, 255, 0.8)');
+                gradient.addColorStop(0.5, 'rgba(0, 100, 255, 0.5)');
+                gradient.addColorStop(1, 'rgba(0, 0, 255, 0.1)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(
+                    exit.x + exit.width/2,
+                    exit.y + exit.height/2,
+                    exit.width/2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
+            
+            function drawUI() {
+                // Score
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.fillText(`Score: ${score}`, 20, 30);
+                ctx.fillText(`Level: ${level}`, 20, 60);
+                
+                // Flame meter
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(canvas.width - 220, 20, 200, 20);
+                
+                const flameColor = `rgb(
+                    ${255}, 
+                    ${Math.min(255, 100 + flameSize)}, 
+                    ${Math.min(255, 50 + flameSize / 2)}
+                )`;
+                ctx.fillStyle = flameColor;
+                ctx.fillRect(canvas.width - 220, 20, flameSize * 2, 20);
+                
+                ctx.strokeStyle = '#fff';
+                ctx.strokeRect(canvas.width - 220, 20, 200, 20);
+                
+                // Game over screen
+                if (!gameActive) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '36px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Game Over', canvas.width/2, canvas.height/2 - 40);
+                    
+                    ctx.font = '24px Arial';
+                    ctx.fillText(`Score: ${score} - Level: ${level}`, canvas.width/2, canvas.height/2);
+                    
+                    ctx.font = '20px Arial';
+                    ctx.fillText('Tap to restart', canvas.width/2, canvas.height/2 + 40);
+                    
+                    ctx.textAlign = 'left';
+                }
+            }
+            
+            // Game loop
+            function gameLoop() {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Background
+                ctx.fillStyle = '#222';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                if (gameActive) {
+                    // Update game elements
+                    platforms.forEach(drawPlatform);
+                    candles.forEach(drawCandle);
+                    enemies.forEach(drawEnemy);
+                    drawExit(exit);
+                    
+                    // Update and draw player
+                    player.update();
+                    player.draw();
+                }
+                
+                // Draw UI
+                drawUI();
+                
+                // Continue animation
+                requestAnimationFrame(gameLoop);
+            }
+            
+            // Touch controls
+            const joystickArea = document.getElementById('joystickArea');
+            const joystick = document.getElementById('joystick');
+            const jumpBtn = document.getElementById('jumpBtn');
+            
+            let joystickActive = false;
+            let joystickStartX = 0;
+            
+            joystickArea.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = joystickArea.getBoundingClientRect();
+                joystickStartX = touch.clientX - rect.left;
+                joystickActive = true;
+                
+                // Position joystick at touch point
+                joystick.style.left = joystickStartX + 'px';
+            });
+            
+            joystickArea.addEventListener('touchmove', function(e) {
+                if (!joystickActive) return;
+                e.preventDefault();
+                
+                const touch = e.touches[0];
+                const rect = joystickArea.getBoundingClientRect();
+                const joystickX = touch.clientX - rect.left - joystickStartX;
+                
+                // Calculate joystick position
+                const maxDistance = 35;
+                const limitedX = Math.max(-maxDistance, Math.min(maxDistance, joystickX));
+                joystick.style.transform = `translate(calc(-50% + ${limitedX}px), -50%)`;
+                
+                // Update player direction
+                if (limitedX < -10) {
+                    keys.left = true;
+                    keys.right = false;
+                } else if (limitedX > 10) {
+                    keys.right = true;
+                    keys.left = false;
+                } else {
+                    keys.left = false;
+                    keys.right = false;
+                }
+            });
+            
+            joystickArea.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                joystickActive = false;
+                keys.left = false;
+                keys.right = false;
+                joystick.style.transform = 'translate(-50%, -50%)';
+                joystick.style.left = '50%';
+            });
+            
+            jumpBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                keys.up = true;
+            });
+            
+            jumpBtn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                keys.up = false;
+            });
+            
+            // Keyboard controls for desktop
+            window.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowLeft') keys.left = true;
+                if (e.key === 'ArrowRight') keys.right = true;
+                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = true;
+                
+                // Restart on Enter when game over
+                if (e.key === 'Enter' && !gameActive) {
+                    level = 1;
+                    score = 0;
+                    loadLevel(1);
+                }
+            });
+            
+            window.addEventListener('keyup', function(e) {
+                if (e.key === 'ArrowLeft') keys.left = false;
+                if (e.key === 'ArrowRight') keys.right = false;
+                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
+            });
+            
+            // Handle canvas clicks for restart
+            canvas.addEventListener('click', function() {
+                if (!gameActive) {
+                    level = 1;
+                    score = 0;
+                    loadLevel(1);
+                }
+            });
+            
+            // Handle resize
+            function resizeCanvas() {
+                const maxWidth = window.innerWidth;
+                const maxHeight = window.innerHeight;
+                const ratio = canvas.width / canvas.height;
+                
+                let newWidth, newHeight;
+                
+                if (maxWidth / maxHeight > ratio) {
+                    newHeight = maxHeight;
+                    newWidth = newHeight * ratio;
+                } else {
+                    newWidth = maxWidth;
+                    newHeight = newWidth / ratio;
+                }
+                
+                canvas.style.width = newWidth + 'px';
+                canvas.style.height = newHeight + 'px';
+            }
+            
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            
+            // Start the game
+            loadLevel(1);
+            gameLoop();
+        });
+    </script>
+</body>
+</html>
