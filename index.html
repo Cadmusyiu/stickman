@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stick Man Game</title>
     <style>
         body {
@@ -14,14 +14,13 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: Arial, sans-serif;
             touch-action: none;
         }
-        #gameCanvas {
-            background: #222;
+        canvas {
+            display: block;
+            background-color: #222;
             max-width: 100%;
-            max-height: 100vh;
-            touch-action: none;
+            max-height: 100%;
         }
         #controls {
             position: absolute;
@@ -31,15 +30,13 @@
             justify-content: space-between;
             padding: 0 30px;
             box-sizing: border-box;
-            pointer-events: none;
         }
-        #joystickArea {
+        #joystickContainer {
             width: 120px;
             height: 120px;
             background-color: rgba(255,255,255,0.1);
             border-radius: 50%;
             position: relative;
-            pointer-events: auto;
         }
         #joystick {
             width: 50px;
@@ -51,7 +48,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
         }
-        #jumpBtn {
+        .control-btn {
             width: 100px;
             height: 60px;
             background-color: rgba(255,255,255,0.3);
@@ -62,38 +59,46 @@
             font-size: 20px;
             color: white;
             user-select: none;
-            pointer-events: auto;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     <div id="controls">
-        <div id="joystickArea"><div id="joystick"></div></div>
-        <div id="jumpBtn">JUMP</div>
+        <div id="joystickContainer">
+            <div id="joystick"></div>
+        </div>
+        <div class="control-btn" id="jumpBtn">JUMP</div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Canvas setup
+        // Wait for everything to load
+        window.addEventListener('load', function() {
+            // Game setup
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
             
-            // Set fixed game size
+            // Set canvas size
             canvas.width = 800;
             canvas.height = 450;
             
-            // Game variables
-            let score = 0;
-            let level = 1;
-            let flameSize = 100;
-            let gameActive = true;
+            // Basic game variables
+            let lastTime = 0;
+            let animationId;
             
             // Controls
             const keys = {
                 left: false,
                 right: false,
                 up: false
+            };
+            
+            // Game state
+            let gameState = {
+                active: true,
+                score: 0,
+                flameSize: 100,
+                level: 1
             };
             
             // Player
@@ -107,30 +112,15 @@
                 speed: 5,
                 jumpForce: 12,
                 isJumping: false,
-                walkFrame: 0,
-                walkCycle: 0,
-                facing: 1, // 1 = right, -1 = left
                 
                 update() {
                     // Apply gravity
                     this.velocityY += 0.5;
                     
                     // Apply movement
-                    if (keys.left) {
-                        this.velocityX = -this.speed;
-                        this.facing = -1;
-                        this.walkCycle += 0.15;
-                    } else if (keys.right) {
-                        this.velocityX = this.speed;
-                        this.facing = 1;
-                        this.walkCycle += 0.15;
-                    } else {
-                        this.velocityX = 0;
-                        this.walkCycle = 0;
-                    }
-                    
-                    // Calculate walk frame
-                    this.walkFrame = Math.floor(this.walkCycle) % 4;
+                    if (keys.left) this.velocityX = -this.speed;
+                    else if (keys.right) this.velocityX = this.speed;
+                    else this.velocityX = 0;
                     
                     // Apply jump
                     if (keys.up && !this.isJumping) {
@@ -142,114 +132,26 @@
                     this.x += this.velocityX;
                     this.y += this.velocityY;
                     
-                    // Platform collision
-                    platforms.forEach(platform => {
-                        if (
-                            this.x + this.width > platform.x &&
-                            this.x < platform.x + platform.width &&
-                            this.y + this.height > platform.y &&
-                            this.y + this.height < platform.y + 10 &&
-                            this.velocityY > 0
-                        ) {
-                            this.y = platform.y - this.height;
-                            this.velocityY = 0;
-                            this.isJumping = false;
-                        }
-                    });
-                    
-                    // Candle collision
-                    for (let i = candles.length - 1; i >= 0; i--) {
-                        const candle = candles[i];
-                        if (
-                            this.x + this.width > candle.x &&
-                            this.x < candle.x + candle.width &&
-                            this.y + this.height > candle.y &&
-                            this.y < candle.y + candle.height
-                        ) {
-                            flameSize = Math.min(100, flameSize + 20);
-                            score += 10;
-                            candles.splice(i, 1);
-                        }
-                    }
-                    
-                    // Enemy collision
-                    enemies.forEach(enemy => {
-                        if (
-                            this.x + this.width > enemy.x &&
-                            this.x < enemy.x + enemy.width &&
-                            this.y + this.height > enemy.y &&
-                            this.y < enemy.y + enemy.height
-                        ) {
-                            flameSize = Math.max(0, flameSize - 1);
-                        }
-                    });
-                    
-                    // Exit collision
-                    if (
-                        this.x + this.width > exit.x &&
-                        this.x < exit.x + exit.width &&
-                        this.y + this.height > exit.y &&
-                        this.y < exit.y + exit.height
-                    ) {
-                        level++;
-                        loadLevel(level);
-                    }
-                    
-                    // Boundaries
-                    if (this.x < 0) this.x = 0;
-                    if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
-                    if (this.y + this.height > canvas.height) {
+                    // Floor collision
+                    if (this.y > canvas.height - this.height) {
                         this.y = canvas.height - this.height;
                         this.velocityY = 0;
                         this.isJumping = false;
                     }
                     
-                    // Decrease flame over time
-                    flameSize = Math.max(0, flameSize - 0.05);
-                    
-                    // Check if game over
-                    if (flameSize <= 0) {
-                        gameActive = false;
-                    }
+                    // Walls
+                    if (this.x < 0) this.x = 0;
+                    if (this.x > canvas.width - this.width) this.x = canvas.width - this.width;
                 },
                 
                 draw() {
-                    // Glow effect based on flame size
-                    const radius = 80 * (flameSize / 100);
-                    const gradient = ctx.createRadialGradient(
-                        this.x + this.width/2, 
-                        this.y - 15, 
-                        0, 
-                        this.x + this.width/2, 
-                        this.y - 15, 
-                        radius
-                    );
-                    gradient.addColorStop(0, 'rgba(255, 200, 100, 0.8)');
-                    gradient.addColorStop(1, 'rgba(255, 200, 100, 0)');
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(
-                        this.x + this.width/2, 
-                        this.y - 15, 
-                        radius, 
-                        0, 
-                        Math.PI * 2
-                    );
-                    ctx.fill();
-                    
-                    // Stick figure
+                    // Draw stick figure
                     ctx.strokeStyle = 'red';
                     ctx.lineWidth = 2;
                     
                     // Head
                     ctx.beginPath();
-                    ctx.arc(
-                        this.x + this.width/2, 
-                        this.y, 
-                        10, 
-                        0, 
-                        Math.PI * 2
-                    );
+                    ctx.arc(this.x + this.width/2, this.y, 10, 0, Math.PI * 2);
                     ctx.stroke();
                     
                     // Body
@@ -258,247 +160,167 @@
                     ctx.lineTo(this.x + this.width/2, this.y + 30);
                     ctx.stroke();
                     
-                    // Arms and legs with simple animation
-                    if (this.velocityX !== 0 && !this.isJumping) {
-                        // Walking animation
-                        const frameOffset = this.walkFrame / 2;
-                        
-                        // Arms
-                        ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2, this.y + 15);
-                        ctx.lineTo(this.x + this.width/2 - 10, this.y + 15 - 5 * frameOffset);
-                        ctx.moveTo(this.x + this.width/2, this.y + 15);
-                        ctx.lineTo(this.x + this.width/2 + 10, this.y + 15 + 5 * frameOffset);
-                        ctx.stroke();
-                        
-                        // Legs
-                        ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(this.x + this.width/2 - 8, this.y + 40 - 5 * frameOffset);
-                        ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(this.x + this.width/2 + 8, this.y + 40 + 5 * frameOffset);
-                        ctx.stroke();
-                    } else {
-                        // Static pose for standing or jumping
-                        // Arms
-                        ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2 - 10, this.y + 15);
-                        ctx.lineTo(this.x + this.width/2, this.y + 15);
-                        ctx.lineTo(this.x + this.width/2 + 10, this.y + 15);
-                        ctx.stroke();
-                        
-                        // Legs
-                        ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(this.x + this.width/2 - 8, this.y + 40);
-                        ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(this.x + this.width/2 + 8, this.y + 40);
-                        ctx.stroke();
-                    }
+                    // Arms
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width/2 - 10, this.y + 20);
+                    ctx.lineTo(this.x + this.width/2, this.y + 20);
+                    ctx.lineTo(this.x + this.width/2 + 10, this.y + 20);
+                    ctx.stroke();
+                    
+                    // Legs
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width/2, this.y + 30);
+                    ctx.lineTo(this.x + this.width/2 - 8, this.y + 40);
+                    ctx.moveTo(this.x + this.width/2, this.y + 30);
+                    ctx.lineTo(this.x + this.width/2 + 8, this.y + 40);
+                    ctx.stroke();
                     
                     // Flame on head
-                    const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
                     ctx.beginPath();
                     ctx.moveTo(this.x + this.width/2 - 5, this.y - 10);
-                    ctx.quadraticCurveTo(
-                        this.x + this.width/2, 
-                        this.y - 10 - flameHeight, 
-                        this.x + this.width/2 + 5, 
-                        this.y - 10
-                    );
+                    ctx.quadraticCurveTo(this.x + this.width/2, this.y - 25, this.x + this.width/2 + 5, this.y - 10);
                     ctx.fillStyle = 'orange';
                     ctx.fill();
                     
-                    // Inner flame
-                    ctx.beginPath();
-                    ctx.moveTo(this.x + this.width/2 - 3, this.y - 10);
-                    ctx.quadraticCurveTo(
-                        this.x + this.width/2, 
-                        this.y - 10 - flameHeight * 0.7, 
-                        this.x + this.width/2 + 3, 
-                        this.y - 10
+                    // Glow effect
+                    const radius = 80 * (gameState.flameSize / 100);
+                    const gradient = ctx.createRadialGradient(
+                        this.x + this.width/2, this.y - 15, 0,
+                        this.x + this.width/2, this.y - 15, radius
                     );
-                    ctx.fillStyle = 'yellow';
+                    gradient.addColorStop(0, 'rgba(255, 200, 100, 0.8)');
+                    gradient.addColorStop(1, 'rgba(255, 200, 100, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.width/2, this.y - 15, radius, 0, Math.PI * 2);
                     ctx.fill();
                 }
             };
             
-            // Level designs
-            const levelDesigns = [
-                // Level 1
-                {
-                    platforms: [
-                        { x: 0, y: 400, width: 200, height: 20 },
-                        { x: 250, y: 350, width: 150, height: 20 },
-                        { x: 450, y: 300, width: 150, height: 20 },
-                        { x: 650, y: 250, width: 150, height: 20 }
-                    ],
-                    candles: [
-                        { x: 300, y: 320, width: 10, height: 30 },
-                        { x: 500, y: 270, width: 10, height: 30 },
-                        { x: 700, y: 220, width: 10, height: 30 }
-                    ],
-                    enemies: [
-                        { x: 200, y: 370, width: 20, height: 30, direction: 1, speed: 1 }
-                    ],
-                    exit: { x: 750, y: 200, width: 30, height: 50 }
-                },
-                // Level 2
-                {
-                    platforms: [
-                        { x: 0, y: 400, width: 100, height: 20 },
-                        { x: 150, y: 350, width: 100, height: 20 },
-                        { x: 300, y: 300, width: 100, height: 20 },
-                        { x: 450, y: 350, width: 100, height: 20 },
-                        { x: 600, y: 400, width: 100, height: 20 },
-                        { x: 750, y: 350, width: 50, height: 20 }
-                    ],
-                    candles: [
-                        { x: 150, y: 320, width: 10, height: 30 },
-                        { x: 300, y: 270, width: 10, height: 30 },
-                        { x: 450, y: 320, width: 10, height: 30 },
-                        { x: 600, y: 370, width: 10, height: 30 },
-                        { x: 750, y: 320, width: 10, height: 30 }
-                    ],
-                    enemies: [
-                        { x: 300, y: 270, width: 20, height: 30, direction: 1, speed: 1.5 },
-                        { x: 600, y: 370, width: 20, height: 30, direction: -1, speed: 1.5 }
-                    ],
-                    exit: { x: 750, y: 300, width: 30, height: 50 }
-                },
-                // Level 3
-                {
-                    platforms: [
-                        { x: 0, y: 400, width: 80, height: 20 },
-                        { x: 130, y: 350, width: 80, height: 20 },
-                        { x: 260, y: 300, width: 80, height: 20 },
-                        { x: 390, y: 250, width: 80, height: 20 },
-                        { x: 520, y: 200, width: 80, height: 20 },
-                        { x: 650, y: 250, width: 80, height: 20 },
-                        { x: 780, y: 300, width: 20, height: 20 }
-                    ],
-                    candles: [
-                        { x: 130, y: 320, width: 10, height: 30 },
-                        { x: 260, y: 270, width: 10, height: 30 },
-                        { x: 390, y: 220, width: 10, height: 30 },
-                        { x: 520, y: 170, width: 10, height: 30 },
-                        { x: 650, y: 220, width: 10, height: 30 }
-                    ],
-                    enemies: [
-                        { x: 130, y: 320, width: 20, height: 30, direction: 1, speed: 2 },
-                        { x: 390, y: 220, width: 20, height: 30, direction: -1, speed: 2 }
-                    ],
-                    exit: { x: 780, y: 250, width: 20, height: 50 }
+            // Game loop
+            function gameLoop(timestamp) {
+                const deltaTime = timestamp - lastTime;
+                lastTime = timestamp;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw background
+                ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Update and draw player
+                player.update();
+                player.draw();
+                
+                // UI
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.fillText('Use joystick to move, tap JUMP to jump', 20, 30);
+                
+                // Continue animation
+                animationId = requestAnimationFrame(gameLoop);
+            }
+            
+            // Joystick control
+            const joystickContainer = document.getElementById('joystickContainer');
+            const joystick = document.getElementById('joystick');
+            const jumpBtn = document.getElementById('jumpBtn');
+            
+            let joystickActive = false;
+            let joystickStartX = 0;
+            
+            joystickContainer.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = joystickContainer.getBoundingClientRect();
+                joystickStartX = touch.clientX - rect.left;
+                joystickActive = true;
+                
+                joystick.style.left = joystickStartX + 'px';
+            });
+            
+            joystickContainer.addEventListener('touchmove', (e) => {
+                if (!joystickActive) return;
+                e.preventDefault();
+                
+                const touch = e.touches[0];
+                const rect = joystickContainer.getBoundingClientRect();
+                const joystickX = touch.clientX - rect.left - joystickStartX;
+                
+                // Move the joystick (with limits)
+                const maxDistance = 35;
+                const limitedX = Math.max(-maxDistance, Math.min(maxDistance, joystickX));
+                
+                joystick.style.transform = `translate(calc(-50% + ${limitedX}px), -50%)`;
+                
+                // Update player controls
+                if (limitedX < -10) {
+                    keys.left = true;
+                    keys.right = false;
+                } else if (limitedX > 10) {
+                    keys.right = true;
+                    keys.left = false;
+                } else {
+                    keys.left = false;
+                    keys.right = false;
                 }
-            ];
+            });
             
-            // Game entities
-            let platforms = [];
-            let candles = [];
-            let enemies = [];
-            let exit = {};
+            joystickContainer.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                joystickActive = false;
+                keys.left = false;
+                keys.right = false;
+                joystick.style.transform = 'translate(-50%, -50%)';
+                joystick.style.left = '50%';
+            });
             
-            // Load level
-            function loadLevel(levelNum) {
-                // Reset game if completed all levels
-                if (levelNum > levelDesigns.length) {
-                    level = 1;
-                    score = 0;
-                    levelNum = 1;
-                }
-                
-                const design = levelDesigns[levelNum - 1];
-                
-                platforms = JSON.parse(JSON.stringify(design.platforms));
-                candles = JSON.parse(JSON.stringify(design.candles));
-                enemies = JSON.parse(JSON.stringify(design.enemies));
-                exit = JSON.parse(JSON.stringify(design.exit));
-                
-                // Reset player position
-                player.x = 50;
-                player.y = 350;
-                player.velocityX = 0;
-                player.velocityY = 0;
-                
-                // Reset flame
-                flameSize = 100;
-                
-                // Reset game state
-                gameActive = true;
-            }
+            jumpBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys.up = true;
+            });
             
-            // Drawing functions
-            function drawPlatform(platform) {
-                ctx.fillStyle = '#555';
-                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-            }
+            jumpBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys.up = false;
+            });
             
-            function drawCandle(candle) {
-                // Candle base
-                ctx.fillStyle = '#f5f5dc';
-                ctx.fillRect(candle.x, candle.y, candle.width, candle.height);
-                
-                // Flame
-                const flameHeight = 10 + Math.sin(Date.now() / 200) * 3;
-                ctx.beginPath();
-                ctx.moveTo(candle.x, candle.y);
-                ctx.quadraticCurveTo(
-                    candle.x + candle.width/2, 
-                    candle.y - flameHeight, 
-                    candle.x + candle.width, 
-                    candle.y
-                );
-                ctx.fillStyle = 'orange';
-                ctx.fill();
-            }
+            // Handle keyboard controls for desktop testing
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') keys.left = true;
+                if (e.key === 'ArrowRight') keys.right = true;
+                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = true;
+            });
             
-            function drawEnemy(enemy) {
-                // Shadow enemy
-                ctx.fillStyle = '#000';
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowLeft') keys.left = false;
+                if (e.key === 'ArrowRight') keys.right = false;
+                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
+            });
+            
+            // Handle window resize
+            function handleResize() {
+                const container = document.body;
+                const containerRatio = container.clientWidth / container.clientHeight;
+                const canvasRatio = canvas.width / canvas.height;
                 
-                // Body
-                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-                
-                // Head
-                ctx.beginPath();
-                ctx.arc(
-                    enemy.x + enemy.width/2, 
-                    enemy.y - 5, 
-                    10, 
-                    0, 
-                    Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Update position
-                enemy.x += enemy.direction * enemy.speed;
-                
-                // Find platform this enemy is on
-                let enemyPlatform = null;
-                platforms.forEach(platform => {
-                    if (enemy.x + enemy.width/2 >= platform.x && 
-                        enemy.x + enemy.width/2 <= platform.x + platform.width && 
-                        enemy.y + enemy.height >= platform.y &&
-                        enemy.y + enemy.height <= platform.y + 10) {
-                        enemyPlatform = platform;
-                    }
-                });
-                
-                // Change direction at platform edges or walls
-                if (enemyPlatform) {
-                    if (enemy.x <= enemyPlatform.x || enemy.x + enemy.width >= enemyPlatform.x + enemyPlatform.width) {
-                        enemy.direction *= -1;
-                    }
-                } else if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
-                    enemy.direction *= -1;
+                if (containerRatio < canvasRatio) {
+                    canvas.style.width = '100%';
+                    canvas.style.height = 'auto';
+                } else {
+                    canvas.style.width = 'auto';
+                    canvas.style.height = '100%';
                 }
             }
             
-            function drawExit(exit) {
-                // Portal
-                const gradient = ctx.createRadialGradient(
-                    exit.x + exit.width/2, 
-                    exit.y + exit.height/2, 
-                    5,
-                    exit.x + exit.width/2, 
-                 
+            window.addEventListener('resize', handleResize);
+            handleResize();
+            
+            // Start the game
+            lastTime = 0;
+            animationId = requestAnimationFrame(gameLoop);
+        });
+    </script>
+</body>
+</html>
