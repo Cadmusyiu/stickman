@@ -17,20 +17,11 @@
             font-family: Arial, sans-serif;
             touch-action: none;
         }
-        #gameContainer {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            max-width: 800px;
-            max-height: 450px;
-            touch-action: none;
-        }
         #gameCanvas {
             background: #222;
             max-width: 100%;
             max-height: 100vh;
             touch-action: none;
-            position: absolute;
         }
         #controls {
             position: absolute;
@@ -41,7 +32,6 @@
             padding: 0 30px;
             box-sizing: border-box;
             pointer-events: none;
-            z-index: 10;
         }
         #joystickArea {
             width: 120px;
@@ -74,205 +64,30 @@
             user-select: none;
             pointer-events: auto;
         }
-        #menuScreen, #gameOverScreen, #levelCompleteScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0,0,0,0.8);
-            z-index: 20;
-            color: white;
-        }
-        #gameOverScreen, #levelCompleteScreen {
-            display: none;
-        }
-        h1 {
-            color: #ff4500;
-            font-size: 36px;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(255, 100, 0, 0.7);
-        }
-        h2 {
-            color: white;
-            font-size: 24px;
-            margin-bottom: 30px;
-        }
-        .menu-btn {
-            background-color: #ff4500;
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            margin: 10px;
-            border-radius: 5px;
-            font-size: 18px;
-            cursor: pointer;
-        }
-        #muteButton {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            width: 30px;
-            height: 30px;
-            background-color: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 16px;
-            z-index: 10;
-            pointer-events: auto;
-        }
-        #powerUpIndicator {
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            padding: 5px 10px;
-            background-color: rgba(255,255,255,0.2);
-            color: white;
-            border-radius: 10px;
-            font-size: 14px;
-            display: none;
-            z-index: 10;
-        }
-        #highScores {
-            margin-top: 20px;
-            text-align: center;
-            color: white;
-            max-height: 100px;
-            overflow-y: auto;
-        }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        
-        <div id="menuScreen">
-            <h1>STICK MAN</h1>
-            <h2>The Flame Walker</h2>
-            <button id="startButton" class="menu-btn">START GAME</button>
-            <div id="highScores">
-                <h3>HIGH SCORES</h3>
-                <div id="highScoresList"></div>
-            </div>
-        </div>
-        
-        <div id="gameOverScreen">
-            <h1>GAME OVER</h1>
-            <h2 id="finalScore">Score: 0</h2>
-            <button id="restartButton" class="menu-btn">PLAY AGAIN</button>
-            <button id="menuButton" class="menu-btn">MAIN MENU</button>
-        </div>
-        
-        <div id="levelCompleteScreen">
-            <h1>LEVEL COMPLETE!</h1>
-            <h2 id="levelScore">Score: 0</h2>
-            <button id="nextLevelButton" class="menu-btn">NEXT LEVEL</button>
-        </div>
-        
-        <div id="controls">
-            <div id="joystickArea"><div id="joystick"></div></div>
-            <div id="jumpBtn">JUMP</div>
-        </div>
-        
-        <div id="muteButton">🔊</div>
-        <div id="powerUpIndicator"></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <div id="joystickArea"><div id="joystick"></div></div>
+        <div id="jumpBtn">JUMP</div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // UI Elements
-            const gameContainer = document.getElementById('gameContainer');
+            // Canvas setup
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
-            const menuScreen = document.getElementById('menuScreen');
-            const gameOverScreen = document.getElementById('gameOverScreen');
-            const levelCompleteScreen = document.getElementById('levelCompleteScreen');
-            const startButton = document.getElementById('startButton');
-            const restartButton = document.getElementById('restartButton');
-            const menuButton = document.getElementById('menuButton');
-            const nextLevelButton = document.getElementById('nextLevelButton');
-            const finalScore = document.getElementById('finalScore');
-            const levelScore = document.getElementById('levelScore');
-            const highScoresList = document.getElementById('highScoresList');
-            const muteButton = document.getElementById('muteButton');
-            const powerUpIndicator = document.getElementById('powerUpIndicator');
             
             // Set fixed game size
             canvas.width = 800;
             canvas.height = 450;
             
-            // Audio setup
-            let isMuted = false;
-            const sounds = {
-                jump: new Audio('data:audio/wav;base64,UklGRqQEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YYAEAACAgICAgICAgICAgICAgICAgICAgICBAoGBgoKEhIWEhoYIiYqKCYoLjA2MlpaWmJmZnJydnZ+goKGjoqSmqKqpqaiop6ioqaqoqaqqpqejpKCfnaKem5qYl5qVlJKRjo2LioiIh4WCf34hfHt3eHZzcnBsaVxVT05JSUdGQ0JALC0nJiQkIiEfHRwbGhkYFxYVFBMSERAODQwLCgkIBwYFBAMCAQAAAAECAwQGBwkLC57AwMC/wMC/wMC/w8bP0NTa3+Tp7fH1+fr9/v8AAQIEBQYICAoLDQ4QERMUFRcYGhscHR8hIiQmJygpKSwuMDEzNTc5PUBCREVISE1PUlZZXF9iZWlsb3N2en2Bg4aKjpGVmJqeoqarrK+ztbi8wMTIy87S1tnd4ebq7PHy8/b3+Pn5+vr7+/z8/f39/v7+/v///v7+/v7+/v7+/v7+/v7+/v3+/v39/f39/fz9/Pz8/Pz7/Pv6+vr6+fr6+fr5+vn5+fn5+vn6+vr6+vv7+/v7+vv7+/v7/Pz8/Pz8/P38/f3+/v79/v////8AAAAAAAAAAAAAAAAAAAAAAAABAgMDAwQGBggICQsNDg8QEBETFRUYGRocHh4fICIjJCYnKCosLS0vMDE0NTc4Ojo8PT5AQUNFR0hKTU5QUVNUV1haW1xeYGFjZWZnaWptbW9xcnR2d3l6fH6Bg4SGiImLjI6PkZKUlZeYmZudnqCio6SmqKmrra6wsrS1t7m7vL7AwcPFx8jKy83P0tTW19ja29zd3+Dh4uPk5OXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5OPi4eDe3NrZ1tTTz83MysnHxsXEw8PCwcDAvr27urm3trOysa+trKqpqKalpKOioaCfnp2cm5mYl5aVlJOSkI+OjYyLioiHhoWEg4KBgH9+fXx7enl4d3Z1dHNyb21sa2pqaWhnZmVkY2JhYF9eXVxbWllYV1ZVVFNSUVA/Pj08Ozo5ODc2NTQyMTEvLi0sKyopKCcmJSQjIiEgHx4dHBsaGRkYFxYVFBMSERAPDg0MCwoJCAcGBQUEAwICAQDLzcvLy8rDwzzAvb6/v7/AwMDCwcK+vLu6ube0tbOwsq+sq6iooaCel5aTkJKNi4qHhYR+fnt4d3Z0cnJwbmtqaWhlZGJhX15dW1paWVhXVlZVVFNTUlJRUE9OTUxMS0pJR0ZFRENCQkA/Pj49PDs6OTg3NjU0MzMyMTAwLi0tKyopKCcmJSUkIyIiISAfHx4dHBwbGhkZGBcXFhUVFBMSEhEQDw8ODQwLCwoJCQgHBgYFBAMDAgEBAICAAAD//wEAAgQA'),
-                collect: new Audio('data:audio/wav;base64,UklGRnYDAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YVABAAB0eXp8fYGAgIGEg4SHhoeMi4uPjZGQk5KXlZidnJ+eoaOmqqmsrrCwsrS3t7i4uLi6u7u6urq7uLe2tLKurayppKCcmpWRjYmGf3t3dG9raGFdVlJLRkE4MisdDgb8AfP4+/b28/Tz9fv++QUGCxclJzEzPD1ERkhKTE9WVl1eX2JmZ25ucHBwbWxpZ2JgW1dTTUlGQDs0LSccGBEMBP4C+vj3APoBAwcIDxQYHyInKy4xNDc6PDw9PDs7OTg2MzAtKiYjHhoWEQ0JBgIB//z6+PX08/Lz8/T19fb3+Pn6+/v7+vn6+vr5+fj39/f3+Pn6/f8CBAcKDhEVGR0hJSktMDM3Oz9DSHZ6fH6DgoaGio2QkpWZm52hpKWrr7G0t7e4uri3tbSyraqmop6YlI+KhX97eHFtaWVgW1ZRTEhCPDcxKyUfGRMOCAP//Pv5/Pz9/gEEBwwRFRwgJCksLzI2Ojs/QkRFR0VEQ0JBPj06Nzg4ODc0MjAtLCopKSopKissLS4vLzAvMC8uLSwrKignJSMhHx0bGhkXFhUUEhEQDw4NDAwNDQ4PEBITFBUYGRsdICIkJyotLzI0lpeZmpyen6ChpKWmqKmqq6eoqKmoqaiop6alpKOioJ+em5qZl5aUkpGPjoyLioiHhoSEg4KBgIB/fn59fHx7fHt6enp5eXl5eXl5eXl6enp6e3t8fHx9fX1+fn5/f4CAgIGBgoKDg4OEhIWFhoaGh4eIiImJiYqLi4uMjI6OjpCQkZGSk5OVlZaXmJmampucnZ6en6ChoqOkpaanqKmqqqutra6vr7GxsrO0tLW1tre3uLm5urq7vLy9vsQ+QklUZ5iou3TLy0+z5M9Jv3N9KhZlKI2Fq2+oPZlZy+Gjpw02xqTRe7Xp70t4VD9RNZ59fI4hMUofJEsgYS8mWtfTztfPqwbJDrpf0JAgzXrQWGw0C/sH2xEAyj4FzWDQmS7NVs8LcDn0Eyay0I/Qn9BSrjvwFSjB0K/P+c9ktR3/AwA='),
-                powerUp: new Audio('data:audio/wav;base64,UklGRqwCAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YYgCAAAgICAgICAgFRUFBQUMEhcdHR0dHR0XHR0dHR0XCwcBAAAAAAAAYWJoZ2FgXmlwfX9+c25cWkw+NCobAgAAAAANFiozP09WYXB8homGhX17cGdbTkAuIRkQBvvY+Pj//A0iLj1MV2NvdXl5dnBoWkxAMSYYCvz8+v///v/9/f4CBAsVHigxPE9ZXWVveXNwcXRvamJXSz8yJRwMD/z5+uz2+vn9AQ0SISw1QVFaZmxydnp8dXJmXlZMPzQpGxQHDPsDAgACCA4XIScvOUNMVl5mbnR4enp5cGdiWE9GPTYsIRgNCf3m9ejy+vwABBEZJi86SlVcYmdpbGpnY1hOQjQrHxYJBQoEBwj9AQULEBkhLjZCSlFaYWZqbGxqZ19XTko+NCsiGAwCAe38BoIBBQoQFh4kKjI6QklRWF5iaWlqaGZgWlVPSENANzMrKCMdGREKBP757+vr7O/1+QEJERggKjE4Oz8/QD46NjAnIBkRCgf/8Ofo6+3y9/wFDhYcIycqKy0sKykpJSMfHBkVEA0IBf/67ejl6Ont9PoABg4VGR4gIyMjIB4bGBUQDQsJBAD79/Ty8vP2+P0BBgoOEBITExMSEQ4NDAoIBwYEAvv49/Py8vH09fr////8AAAA//39/Pv8/Pz8/f7+/v///////v7+/v7//v7+/v/////////////+/v7+/v7+/v7//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
-                damage: new Audio('data:audio/wav;base64,UklGRnADAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YZADAAABAQMFBQUJDQ0QExQZHR4jJigsLTI2ODtBREhMUVZaXGBjZ2lrbXBydXd5fH1/gIGChIOFhISDg4KCgYB/fXt6eHd1c3FvbmxqaGdlYmBfXVtZV1ZUVFNUV1NiX3KKiaicqJiakJGJhoOAfXt5d3VzcnBvbWxramlnZ2ZlZWRjYWBfXl1cW1tZWVpVZGB0iZCgr7vA0dTc3ODb1s/KxcC8uLOuqqWgnJmVkY2MiH5/e3x1eG9xaGtlaWFkX2JaXVdaU1RRUEpKRkRCQD48OTc2MzIwLy0sKikmJNra2tnZ2drZ2dra2trc3d3d3t/f4OHi4+Tk5OTk5OPj4+Pi4uHh4ODf397e3dzcwR9nGnPTYBu7P+j3XD/JVR7n1zcGPxTG9i7iP90c3PjU7ZoCKdwjbQIe8dDVLe040tfA1+ba3Ovw/gEFCQ0PEhEUEhUTFBITEBEPDg0LCAYEAD7vO+Hf+iTM+z3Axs7Gz9PRz9DPzcvLyMbCwr++urm1tLGxrq2pVkJPQURDR0VIRkhGRkVEQkE/Pz08Ozk3NzQyMS8tLi0qKigmJSYkIiEfHh0cGxoZGBcWFRQTEhEQDw4NDAsKCQgHBgUEAwIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgUHCQwPExYZHB8iJSgtMDQ4O0BDR0pOUlZZXWBkaGtvdHl9gYWIjI+Tl5qdoaWoq66xtLe6vcDCxMbIycrMzc7Q0dHS09TV1tbX19jY2dnZ2trb29vb3Nzc3d3e3t7e39/g4OHg4eHh4uLj4+Pj4+Tk5OTl5eXl5eXl5ubn5+fn5+fo6Ojo6Ojo6Ojq6Ojp6uro6enp6ejo6Ofn5+fm5ubm5eXl5OTk4+Pi4eHg4N/f3t7d3dzc29va2dnZ2NjX1tbV1NPT0tHQz87OzcvLysnIx8bFxMPCwcC/vr28u7q5uLe2tbSzsrGwr66trKuqqainpqWko6OioaGgoJ+enp2dnJybm5qZmZiYmJeXlpaWlZWUlJSTk5KSkpGRkZGQkJCPj4+Oj46OjY2NjY2MjIyMjIuLi4uKiouKioqKioqJiYmJiYmJiYmJiImIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiA=='),
-                levelComplete: new Audio('data:audio/wav;base64,UklGRnQGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YVAGAAC3uMDAwMDBwsTCxMTGzM7P0NPT09PT09PT1NXU1tbW19nY2dfX1dPS0dHQ0NDQ09TW2Nna29vb2tra2tra2tra29zb3Nzc3d3c29vb3Nzc3Nzc3d3c3d7d3d3d3d3d3d3d3d3d3d3d3d3d3dzc3d3c3Nvc3d3c3Nzc3Nzc3NvY1tbU09HS0c/Ny8nGxcLAvr27urq6uLa2s7KysbGvrq6urq+vsbKzs7W2t7i4urq6uru7u727ubm4trW0s7KxsK6trKqqqqmop6alpKSjoqKioqGioqKio6SlpaanqKmqq6usrK2urq+vr7CwsLGxsbGxsrGxsbGxsbGxsbGxsrKys7OztLS0tba1tra2tra2tra2tra2tra2trW1tbW1tLS0tLS0s7OzsrKysrGxsbGwsLCvsK+vr6+vsLCwsbGysrKzs7S0tba2t7e4uLm5urq7u7y8vb29vr6/v7+/wMDAwMDAwcHBwcHCwsLDw8PExMTFxcXGxsbGx8fHx8jIyMjIyMjJycnJycnJycnKysrKysrLy8vKysrKysrKysrKysrKysrKysrKysrKysnJycjIyMjIyMjHx8fHx8bGxsbGxcXFxcXExMTEw8PDw8LCwsLCwcHBwcDAwMC/v7+/vr6+vr29vb28vLy8u7u7u7u6urq6ubm5ubm4uLi4uLe3t7e3tre2tra2tbW1tbW0tLS0tLS0s7OzsrKysrKysbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsrKysrKysrKysrOzs7Ozs7O0tLS0tLS0tLS1tbW1tbW1tba2tra2tre3t7e3uLi4uLi4uLm5ubm5urq6urq7u7u7u7u8vLy8vL29vb29vr6+vr6/v7+/v7/AwMDAwMDAwMHBwcHBwcHCwsLCwsLCw8PDw8PDw8PExMTExMTExMXFxcXFxcXGxsbGxsbGxsbHx8fHx8fHx8fIyMjIyMjIyMjIyMjIyMjIyMnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fGxsbGxsbGxsbGxsbGxsbFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXExMTExMTExMTExMTExMTExMTExMTDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGxsbGx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8jIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyco='),
-                gameOver: new Audio('data:audio/wav;base64,UklGRtAEAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YawEAAD///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wBAQMEBggJCw0PERMVFxkbHR8hIyUnKSssLjAyNDY4Ojs9P0FCREZISktNTlBSVFVXWVpcXmBiZGVnaWtsbnBydHV3eXt9f4CCg4WGiImLjI6PkZKUlZeYmZqdnp+ho6Slp6ipq62ur7GztLW3uLq7vb7AwcLExcfIycrMzc/Q0tPV1tfY2tzd3t/h4uTl5ufo6evs7e/w8fP09fb4+fr7/P3+//vx+AcJAQIACvbfDQICDw8N+uYBGQwFFxEN7eoQGQoHDw0D8PQGCQYADAH1+PoEAf39AAL7/AAABP8AAPwEBgQCBP76/QgKAAIE/vv/AAAA/f77+v7+AAAAAgUDAgQBAAH//f3+/P3//wEABQYEAgD//wADBgcFBQMAAQH+/fz9/f7/AQEEBAIB//8AAAABAgMEAwIBAP////7//wAAAQICAgEA/wAAAAECAgMCAQAA//////////8AAAABAQEAAAAAAAAAAAAAAQEB')
-            };
-            
-            // Initialize sound volumes
-            for (const sound in sounds) {
-                sounds[sound].volume = 0.3;
-            }
-            
             // Game variables
             let score = 0;
             let level = 1;
             let flameSize = 100;
-            let gameActive = false;
-            let levelComplete = false;
-            let lastTime = 0;
-            let animationId;
-            
-            // Power-up system
-            const powerUpTypes = {
-                speedBoost: {
-                    name: "Speed Boost",
-                    duration: 5000, // 5 seconds
-                    color: "#00ff00",
-                    apply: function() {
-                        player.baseSpeed = player.speed;
-                        player.speed *= 1.5;
-                    },
-                    remove: function() {
-                        player.speed = player.baseSpeed;
-                    }
-                },
-                flameBurst: {
-                    name: "Flame Burst",
-                    duration: 7000, // 7 seconds
-                    color: "#ff9900",
-                    apply: function() {
-                        player.flameMultiplier = 2;
-                    },
-                    remove: function() {
-                        player.flameMultiplier = 1;
-                    }
-                },
-                invincibility: {
-                    name: "Invincibility",
-                    duration: 4000, // 4 seconds
-                    color: "#00ffff",
-                    apply: function() {
-                        player.invincible = true;
-                    },
-                    remove: function() {
-                        player.invincible = false;
-                    }
-                }
-            };
-            
-            let activePowerUp = null;
-            let powerUpTimeLeft = 0;
+            let gameActive = true;
             
             // Controls
             const keys = {
@@ -280,37 +95,6 @@
                 right: false,
                 up: false
             };
-            
-            // High scores
-            let highScores = [];
-            
-            // Load high scores from local storage
-            if (localStorage.getItem('stickManHighScores')) {
-                try {
-                    highScores = JSON.parse(localStorage.getItem('stickManHighScores'));
-                } catch(e) {
-                    highScores = [];
-                }
-            }
-            
-            // Update high scores display
-            function updateHighScoresList() {
-                highScoresList.innerHTML = '';
-                const sortedScores = [...highScores].sort((a, b) => b.score - a.score).slice(0, 5);
-                
-                sortedScores.forEach((score, index) => {
-                    const scoreItem = document.createElement('div');
-                    scoreItem.textContent = `${index + 1}. ${score.score} (Level ${score.level})`;
-                    highScoresList.appendChild(scoreItem);
-                });
-                
-                if (sortedScores.length === 0) {
-                    highScoresList.innerHTML = '<div>No scores yet</div>';
-                }
-            }
-            
-            // Update high scores list initially
-            updateHighScoresList();
             
             // Player
             const player = {
@@ -321,14 +105,11 @@
                 velocityX: 0,
                 velocityY: 0,
                 speed: 5,
-                baseSpeed: 5,
                 jumpForce: 12,
                 isJumping: false,
                 walkFrame: 0,
                 walkCycle: 0,
                 facing: 1, // 1 = right, -1 = left
-                invincible: false,
-                flameMultiplier: 1,
                 
                 update() {
                     // Apply gravity
@@ -355,12 +136,6 @@
                     if (keys.up && !this.isJumping) {
                         this.velocityY = -this.jumpForce;
                         this.isJumping = true;
-                        
-                        // Play jump sound
-                        if (!isMuted) {
-                            sounds.jump.currentTime = 0;
-                            sounds.jump.play().catch(e => console.log("Audio play failed:", e));
-                        }
                     }
                     
                     // Update position
@@ -368,7 +143,6 @@
                     this.y += this.velocityY;
                     
                     // Platform collision
-                    let onGround = false;
                     platforms.forEach(platform => {
                         if (
                             this.x + this.width > platform.x &&
@@ -380,7 +154,6 @@
                             this.y = platform.y - this.height;
                             this.velocityY = 0;
                             this.isJumping = false;
-                            onGround = true;
                         }
                     });
                     
@@ -393,92 +166,33 @@
                             this.y + this.height > candle.y &&
                             this.y < candle.y + candle.height
                         ) {
-                            flameSize = Math.min(100, flameSize + (20 * this.flameMultiplier));
+                            flameSize = Math.min(100, flameSize + 20);
                             score += 10;
                             candles.splice(i, 1);
-                            
-                            // Play collect sound
-                            if (!isMuted) {
-                                sounds.collect.currentTime = 0;
-                                sounds.collect.play().catch(e => console.log("Audio play failed:", e));
-                            }
                         }
                     }
                     
                     // Enemy collision
-                    if (!this.invincible) {
-                        enemies.forEach(enemy => {
-                            if (
-                                this.x + this.width > enemy.x &&
-                                this.x < enemy.x + enemy.width &&
-                                this.y + this.height > enemy.y &&
-                                this.y < enemy.y + enemy.height
-                            ) {
-                                flameSize = Math.max(0, flameSize - 1);
-                                
-                                // Play damage sound occasionally (not too frequent)
-                                if (!isMuted && Math.random() < 0.05) {
-                                    sounds.damage.currentTime = 0;
-                                    sounds.damage.play().catch(e => console.log("Audio play failed:", e));
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Power-up collision
-                    for (let i = powerUps.length - 1; i >= 0; i--) {
-                        const powerUp = powerUps[i];
+                    enemies.forEach(enemy => {
                         if (
-                            this.x + this.width > powerUp.x &&
-                            this.x < powerUp.x + powerUp.width &&
-                            this.y + this.height > powerUp.y &&
-                            this.y < powerUp.y + powerUp.height
+                            this.x + this.width > enemy.x &&
+                            this.x < enemy.x + enemy.width &&
+                            this.y + this.height > enemy.y &&
+                            this.y < enemy.y + enemy.height
                         ) {
-                            // Apply power-up
-                            const powerUpConfig = powerUpTypes[powerUp.type];
-                            
-                            // Remove current power-up if exists
-                            if (activePowerUp && powerUpTypes[activePowerUp]) {
-                                powerUpTypes[activePowerUp].remove();
-                            }
-                            
-                            // Apply new power-up
-                            activePowerUp = powerUp.type;
-                            powerUpTimeLeft = powerUpConfig.duration;
-                            powerUpConfig.apply();
-                            
-                            // Show indicator
-                            powerUpIndicator.textContent = powerUpConfig.name;
-                            powerUpIndicator.style.display = 'block';
-                            
-                            // Remove power-up from level
-                            powerUps.splice(i, 1);
-                            
-                            // Play power-up sound
-                            if (!isMuted) {
-                                sounds.powerUp.currentTime = 0;
-                                sounds.powerUp.play().catch(e => console.log("Audio play failed:", e));
-                            }
+                            flameSize = Math.max(0, flameSize - 1);
                         }
-                    }
+                    });
                     
                     // Exit collision
                     if (
-                        !levelComplete &&
                         this.x + this.width > exit.x &&
                         this.x < exit.x + exit.width &&
                         this.y + this.height > exit.y &&
                         this.y < exit.y + exit.height
                     ) {
-                        levelComplete = true;
-                        levelScore.textContent = `Score: ${score}`;
-                        levelCompleteScreen.style.display = 'flex';
-                        
-                        // Play level complete sound
-                        if (!isMuted) {
-                            sounds.levelComplete.currentTime = 0;
-                            sounds.levelComplete.play().catch(e => console.log("Audio play failed:", e));
-                        }
+                        level++;
+                        loadLevel(level);
                     }
                     
                     // Boundaries
@@ -491,38 +205,17 @@
                     }
                     
                     // Decrease flame over time
-                    if (!levelComplete) {
-                        flameSize = Math.max(0, flameSize - 0.05);
-                    }
+                    flameSize = Math.max(0, flameSize - 0.05);
                     
                     // Check if game over
-                    if (flameSize <= 0 && gameActive) {
-                        gameOver();
-                    }
-                    
-                    // Update power-up time
-                    if (activePowerUp && powerUpTimeLeft > 0) {
-                        powerUpTimeLeft -= 16; // Approximate for 60fps
-                        
-                        // Update indicator
-                        if (powerUpTimeLeft > 0) {
-                            powerUpIndicator.textContent = `${powerUpTypes[activePowerUp].name}: ${Math.ceil(powerUpTimeLeft / 1000)}s`;
-                        }
-                        
-                        // Remove power-up if time expired
-                        if (powerUpTimeLeft <= 0) {
-                            if (powerUpTypes[activePowerUp]) {
-                                powerUpTypes[activePowerUp].remove();
-                            }
-                            activePowerUp = null;
-                            powerUpIndicator.style.display = 'none';
-                        }
+                    if (flameSize <= 0) {
+                        gameActive = false;
                     }
                 },
                 
                 draw() {
                     // Glow effect based on flame size
-                    const radius = 80 * (flameSize / 100) * this.flameMultiplier;
+                    const radius = 80 * (flameSize / 100);
                     const gradient = ctx.createRadialGradient(
                         this.x + this.width/2, 
                         this.y - 15, 
@@ -545,11 +238,7 @@
                     ctx.fill();
                     
                     // Stick figure
-                    if (this.invincible && Math.floor(Date.now() / 100) % 2 === 0) {
-                        ctx.strokeStyle = '#00ffff'; // Cyan flashing for invincibility
-                    } else {
-                        ctx.strokeStyle = 'red';
-                    }
+                    ctx.strokeStyle = 'red';
                     ctx.lineWidth = 2;
                     
                     // Head
@@ -569,37 +258,25 @@
                     ctx.lineTo(this.x + this.width/2, this.y + 30);
                     ctx.stroke();
                     
-                    // Arms and legs with improved animation
+                    // Arms and legs with simple animation
                     if (this.velocityX !== 0 && !this.isJumping) {
                         // Walking animation
-                        const angle = this.walkCycle * Math.PI;
+                        const frameOffset = this.walkFrame / 2;
                         
                         // Arms
                         ctx.beginPath();
                         ctx.moveTo(this.x + this.width/2, this.y + 15);
-                        ctx.lineTo(
-                            this.x + this.width/2 + Math.cos(angle) * 10 * this.facing,
-                            this.y + 15 + Math.sin(angle) * 5
-                        );
+                        ctx.lineTo(this.x + this.width/2 - 10, this.y + 15 - 5 * frameOffset);
                         ctx.moveTo(this.x + this.width/2, this.y + 15);
-                        ctx.lineTo(
-                            this.x + this.width/2 + Math.cos(angle + Math.PI) * 10 * this.facing,
-                            this.y + 15 + Math.sin(angle + Math.PI) * 5
-                        );
+                        ctx.lineTo(this.x + this.width/2 + 10, this.y + 15 + 5 * frameOffset);
                         ctx.stroke();
                         
                         // Legs
                         ctx.beginPath();
                         ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(
-                            this.x + this.width/2 + Math.cos(angle) * 8 * this.facing,
-                            this.y + 40 + Math.sin(angle) * 5
-                        );
+                        ctx.lineTo(this.x + this.width/2 - 8, this.y + 40 - 5 * frameOffset);
                         ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(
-                            this.x + this.width/2 + Math.cos(angle + Math.PI) * 8 * this.facing,
-                            this.y + 40 + Math.sin(angle + Math.PI) * 5
-                        );
+                        ctx.lineTo(this.x + this.width/2 + 8, this.y + 40 + 5 * frameOffset);
                         ctx.stroke();
                     } else {
                         // Static pose for standing or jumping
@@ -619,55 +296,37 @@
                         ctx.stroke();
                     }
                     
-                    // Flame on head - more vibrant when using flameBurst
+                    // Flame on head
                     const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
-                    const flameWidth = this.flameMultiplier > 1 ? 7 : 5;
-                    
                     ctx.beginPath();
-                    ctx.moveTo(this.x + this.width/2 - flameWidth, this.y - 10);
+                    ctx.moveTo(this.x + this.width/2 - 5, this.y - 10);
                     ctx.quadraticCurveTo(
                         this.x + this.width/2, 
-                        this.y - 10 - flameHeight * this.flameMultiplier, 
-                        this.x + this.width/2 + flameWidth, 
+                        this.y - 10 - flameHeight, 
+                        this.x + this.width/2 + 5, 
                         this.y - 10
                     );
-                    ctx.fillStyle = this.flameMultiplier > 1 ? '#ff5500' : 'orange';
+                    ctx.fillStyle = 'orange';
                     ctx.fill();
                     
                     // Inner flame
                     ctx.beginPath();
-                    ctx.moveTo(this.x + this.width/2 - flameWidth/2, this.y - 10);
+                    ctx.moveTo(this.x + this.width/2 - 3, this.y - 10);
                     ctx.quadraticCurveTo(
                         this.x + this.width/2, 
-                        this.y - 10 - flameHeight * 0.7 * this.flameMultiplier, 
-                        this.x + this.width/2 + flameWidth/2, 
+                        this.y - 10 - flameHeight * 0.7, 
+                        this.x + this.width/2 + 3, 
                         this.y - 10
                     );
-                    ctx.fillStyle = this.flameMultiplier > 1 ? '#ffaa00' : 'yellow';
+                    ctx.fillStyle = 'yellow';
                     ctx.fill();
-                    
-                    // Draw shield effect for invincibility
-                    if (this.invincible) {
-                        ctx.beginPath();
-                        ctx.arc(
-                            this.x + this.width/2,
-                            this.y + this.height/2 - 5,
-                            this.width + 10,
-                            0,
-                            Math.PI * 2
-                        );
-                        ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-                        ctx.stroke();
-                    }
                 }
             };
             
             // Level designs
             const levelDesigns = [
-                // Level 1 - Introduction
+                // Level 1
                 {
-                    name: "The Beginning",
-                    background: "#222",
                     platforms: [
                         { x: 0, y: 400, width: 200, height: 20 },
                         { x: 250, y: 350, width: 150, height: 20 },
@@ -682,15 +341,10 @@
                     enemies: [
                         { x: 200, y: 370, width: 20, height: 30, direction: 1, speed: 1 }
                     ],
-                    powerUps: [
-                        { x: 400, y: 270, width: 20, height: 20, type: "speedBoost" }
-                    ],
                     exit: { x: 750, y: 200, width: 30, height: 50 }
                 },
-                // Level 2 - More challenging
+                // Level 2
                 {
-                    name: "The Cavern",
-                    background: "#1a1a2e",
                     platforms: [
                         { x: 0, y: 400, width: 100, height: 20 },
                         { x: 150, y: 350, width: 100, height: 20 },
@@ -710,15 +364,10 @@
                         { x: 300, y: 270, width: 20, height: 30, direction: 1, speed: 1.5 },
                         { x: 600, y: 370, width: 20, height: 30, direction: -1, speed: 1.5 }
                     ],
-                    powerUps: [
-                        { x: 450, y: 320, width: 20, height: 20, type: "flameBurst" }
-                    ],
                     exit: { x: 750, y: 300, width: 30, height: 50 }
                 },
-                // Level 3 - Hard
+                // Level 3
                 {
-                    name: "The Abyss",
-                    background: "#0f172a",
                     platforms: [
                         { x: 0, y: 400, width: 80, height: 20 },
                         { x: 130, y: 350, width: 80, height: 20 },
@@ -737,11 +386,7 @@
                     ],
                     enemies: [
                         { x: 130, y: 320, width: 20, height: 30, direction: 1, speed: 2 },
-                        { x: 390, y: 220, width: 20, height: 30, direction: -1, speed: 2 },
-                        { x: 650, y: 220, width: 20, height: 30, direction: 1, speed: 1.5 }
-                    ],
-                    powerUps: [
-                        { x: 520, y: 170, width: 20, height: 20, type: "invincibility" }
+                        { x: 390, y: 220, width: 20, height: 30, direction: -1, speed: 2 }
                     ],
                     exit: { x: 780, y: 250, width: 20, height: 50 }
                 }
@@ -751,126 +396,41 @@
             let platforms = [];
             let candles = [];
             let enemies = [];
-            let powerUps = [];
             let exit = {};
-            let currentBackground = "#222";
             
             // Load level
             function loadLevel(levelNum) {
                 // Reset game if completed all levels
                 if (levelNum > levelDesigns.length) {
-                    gameComplete();
-                    return;
+                    level = 1;
+                    score = 0;
+                    levelNum = 1;
                 }
                 
                 const design = levelDesigns[levelNum - 1];
                 
-                // Set level elements
                 platforms = JSON.parse(JSON.stringify(design.platforms));
                 candles = JSON.parse(JSON.stringify(design.candles));
                 enemies = JSON.parse(JSON.stringify(design.enemies));
-                powerUps = JSON.parse(JSON.stringify(design.powerUps));
                 exit = JSON.parse(JSON.stringify(design.exit));
-                currentBackground = design.background || "#222";
                 
                 // Reset player position
                 player.x = 50;
                 player.y = 350;
                 player.velocityX = 0;
                 player.velocityY = 0;
-                player.invincible = false;
-                player.flameMultiplier = 1;
-                player.speed = player.baseSpeed;
-                
-                // Reset power-up state
-                if (activePowerUp && powerUpTypes[activePowerUp]) {
-                    powerUpTypes[activePowerUp].remove();
-                }
-                activePowerUp = null;
-                powerUpTimeLeft = 0;
-                powerUpIndicator.style.display = 'none';
                 
                 // Reset flame
                 flameSize = 100;
                 
                 // Reset game state
                 gameActive = true;
-                levelComplete = false;
-            }
-            
-            // Game state functions
-            function gameOver() {
-                gameActive = false;
-                
-                // Add score to high scores
-                highScores.push({
-                    score: score,
-                    level: level,
-                    date: new Date().toISOString()
-                });
-                
-                // Sort and limit high scores
-                highScores.sort((a, b) => b.score - a.score);
-                if (highScores.length > 10) highScores = highScores.slice(0, 10);
-                
-                // Save to local storage
-                localStorage.setItem('stickManHighScores', JSON.stringify(highScores));
-                
-                // Update high scores display
-                updateHighScoresList();
-                
-                // Show game over screen
-                finalScore.textContent = `Score: ${score} - Level: ${level}`;
-                gameOverScreen.style.display = 'flex';
-                
-                // Play game over sound
-                if (!isMuted) {
-                    sounds.gameOver.currentTime = 0;
-                    sounds.gameOver.play().catch(e => console.log("Audio play failed:", e));
-                }
-            }
-            
-            function gameComplete() {
-                gameActive = false;
-                
-                // Add score to high scores
-                highScores.push({
-                    score: score,
-                    level: level,
-                    date: new Date().toISOString(),
-                    completed: true
-                });
-                
-                // Sort and limit high scores
-                highScores.sort((a, b) => b.score - a.score);
-                if (highScores.length > 10) highScores = highScores.slice(0, 10);
-                
-                // Save to local storage
-                localStorage.setItem('stickManHighScores', JSON.stringify(highScores));
-                
-                // Update high scores display
-                updateHighScoresList();
-                
-                // Show game over screen with completion message
-                finalScore.textContent = `GAME COMPLETED! Final Score: ${score}`;
-                gameOverScreen.style.display = 'flex';
-                
-                // Play level complete sound
-                if (!isMuted) {
-                    sounds.levelComplete.currentTime = 0;
-                    sounds.levelComplete.play().catch(e => console.log("Audio play failed:", e));
-                }
             }
             
             // Drawing functions
             function drawPlatform(platform) {
-                // Platform base
                 ctx.fillStyle = '#555';
                 ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-                
-                // Platform top highlight
-                ctx.fillStyle = '#777';
-                ctx.fillRect(platform.x, platform.y, platform.width, 5);
             }
             
             function drawCandle(candle) {
@@ -890,28 +450,6 @@
                 );
                 ctx.fillStyle = 'orange';
                 ctx.fill();
-                
-                // Flame glow
-                const gradient = ctx.createRadialGradient(
-                    candle.x + candle.width/2, 
-                    candle.y, 
-                    0,
-                    candle.x + candle.width/2, 
-                    candle.y, 
-                    30
-                );
-                gradient.addColorStop(0, 'rgba(255, 200, 100, 0.5)');
-                gradient.addColorStop(1, 'rgba(255, 200, 100, 0)');
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(
-                    candle.x + candle.width/2, 
-                    candle.y, 
-                    30, 
-                    0, 
-                    Math.PI * 2
-                );
-                ctx.fill();
             }
             
             function drawEnemy(enemy) {
@@ -927,25 +465,6 @@
                     enemy.x + enemy.width/2, 
                     enemy.y - 5, 
                     10, 
-                    0, 
-                    Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Glowing eyes
-                ctx.fillStyle = '#f00';
-                ctx.beginPath();
-                ctx.arc(enemy.x + enemy.width/2 - 3, enemy.y - 7, 2, 0, Math.PI * 2);
-                ctx.arc(enemy.x + enemy.width/2 + 3, enemy.y - 7, 2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Shadow trail
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.beginPath();
-                ctx.arc(
-                    enemy.x + enemy.width/2 - enemy.direction * 10, 
-                    enemy.y + enemy.height/2, 
-                    enemy.width/2, 
                     0, 
                     Math.PI * 2
                 );
@@ -974,506 +493,12 @@
                     enemy.direction *= -1;
                 }
             }
-                 function drawPowerUp(powerUp) {
-                const powerUpConfig = powerUpTypes[powerUp.type];
-                if (!powerUpConfig) return;
-                
-                // Power-up glow effect with pulsing
-                const pulseSize = 1 + Math.sin(Date.now() / 200) * 0.1;
-                const radius = powerUp.width/2 * pulseSize;
-                
-                // Glow
-                const gradient = ctx.createRadialGradient(
-                    powerUp.x + powerUp.width/2, 
-                    powerUp.y + powerUp.height/2, 
-                    0,
-                    powerUp.x + powerUp.width/2, 
-                    powerUp.y + powerUp.height/2, 
-                    radius * 2
-                );
-                gradient.addColorStop(0, powerUpConfig.color + 'CC');
-                gradient.addColorStop(1, powerUpConfig.color + '00');
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(
-                    powerUp.x + powerUp.width/2, 
-                    powerUp.y + powerUp.height/2, 
-                    radius * 2, 
-                    0, 
-                    Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Core
-                ctx.fillStyle = powerUpConfig.color;
-                ctx.beginPath();
-                ctx.arc(
-                    powerUp.x + powerUp.width/2, 
-                    powerUp.y + powerUp.height/2, 
-                    radius, 
-                    0, 
-                    Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Icon based on power-up type
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                
-                switch (powerUp.type) {
-                    case 'speedBoost':
-                        // Speed icon (arrows)
-                        ctx.beginPath();
-                        ctx.moveTo(powerUp.x + powerUp.width/2 - 5, powerUp.y + powerUp.height/2);
-                        ctx.lineTo(powerUp.x + powerUp.width/2 + 5, powerUp.y + powerUp.height/2);
-                        ctx.lineTo(powerUp.x + powerUp.width/2 + 3, powerUp.y + powerUp.height/2 - 3);
-                        ctx.moveTo(powerUp.x + powerUp.width/2 + 5, powerUp.y + powerUp.height/2);
-                        ctx.lineTo(powerUp.x + powerUp.width/2 + 3, powerUp.y + powerUp.height/2 + 3);
-                        ctx.stroke();
-                        break;
-                    case 'flameBurst':
-                        // Flame icon
-                        ctx.beginPath();
-                        ctx.moveTo(powerUp.x + powerUp.width/2 - 4, powerUp.y + powerUp.height/2 + 5);
-                        ctx.lineTo(powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2 - 5);
-                        ctx.lineTo(powerUp.x + powerUp.width/2 + 4, powerUp.y + powerUp.height/2 + 5);
-                        ctx.closePath();
-                        ctx.strokeStyle = '#fff';
-                        ctx.stroke();
-                        break;
-                    case 'invincibility':
-                        // Shield icon
-                        ctx.beginPath();
-                        ctx.arc(
-                            powerUp.x + powerUp.width/2,
-                            powerUp.y + powerUp.height/2,
-                            radius * 0.6,
-                            0,
-                            Math.PI * 2
-                        );
-                        ctx.stroke();
-                        break;
-                }
-            }
             
             function drawExit(exit) {
-                // Portal effect
-                const time = Date.now() / 1000;
-                
-                // Base portal glow
+                // Portal
                 const gradient = ctx.createRadialGradient(
                     exit.x + exit.width/2, 
                     exit.y + exit.height/2, 
                     5,
                     exit.x + exit.width/2, 
-                    exit.y + exit.height/2, 
-                    exit.width
-                );
-                
-                gradient.addColorStop(0, 'rgba(0, 255, 255, 0.8)');
-                gradient.addColorStop(0.5, 'rgba(0, 100, 255, 0.5)');
-                gradient.addColorStop(1, 'rgba(0, 0, 255, 0.1)');
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.ellipse(
-                    exit.x + exit.width/2,
-                    exit.y + exit.height/2,
-                    exit.width/2,
-                    exit.height/2,
-                    0,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Portal swirl animation
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-                ctx.lineWidth = 2;
-                
-                for (let i = 0; i < 3; i++) {
-                    const offset = (i * Math.PI * 2) / 3;
-                    ctx.beginPath();
-                    for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
-                        const radius = ((Math.sin(angle * 3 + time) + 1) / 2) * exit.width / 2;
-                        const x = exit.x + exit.width/2 + Math.cos(angle + time + offset) * radius;
-                        const y = exit.y + exit.height/2 + Math.sin(angle + time + offset) * radius;
-                        
-                        if (angle === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    }
-                    ctx.stroke();
-                }
-            }
-            
-            function drawBackground() {
-                // Create gradient background based on the current level
-                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                
-                // Get the base color from the current level
-                const baseColor = currentBackground;
-                
-                // Create a slightly darker color for the bottom
-                let darkerColor = baseColor;
-                if (baseColor.startsWith('#')) {
-                    // Simple darkening for hex colors
-                    darkerColor = baseColor + '66'; // Add 40% opacity
-                }
-                
-                gradient.addColorStop(0, baseColor);
-                gradient.addColorStop(1, darkerColor);
-                
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Add some ambient particles
-                const time = Date.now() / 1000;
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-                
-                for (let i = 0; i < 50; i++) {
-                    const x = (Math.sin(time * 0.5 + i * 100) + 1) * canvas.width / 2;
-                    const y = ((Math.cos(time * 0.3 + i * 50) + 1) / 2) * canvas.height;
-                    const size = Math.sin(time + i) * 2 + 1;
-                    
-                    ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-            
-            function drawUI() {
-                // Level name
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 24px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(levelDesigns[level - 1].name, canvas.width / 2, 30);
-                ctx.textAlign = 'left';
-                
-                // Score
-                ctx.font = '20px Arial';
-                ctx.fillText(`Score: ${score}`, 20, 30);
-                
-                // Level indicator
-                ctx.fillText(`Level: ${level}/${levelDesigns.length}`, 20, 60);
-                
-                // Flame meter background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-                ctx.fillRect(canvas.width - 220, 20, 200, 20);
-                
-                // Flame meter fill with dynamic color
-                const flameColor = `rgb(
-                    ${255}, 
-                    ${Math.min(255, 100 + flameSize)}, 
-                    ${Math.min(255, 50 + flameSize / 2)}
-                )`;
-                ctx.fillStyle = flameColor;
-                ctx.fillRect(canvas.width - 220, 20, flameSize * 2, 20);
-                
-                // Flame meter border
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(canvas.width - 220, 20, 200, 20);
-                
-                // Power-up indicator
-                if (activePowerUp && powerUpTimeLeft > 0) {
-                    const percentage = powerUpTimeLeft / powerUpTypes[activePowerUp].duration;
-                    
-                    // Draw circular time indicator around player
-                    ctx.beginPath();
-                    ctx.arc(
-                        player.x + player.width/2,
-                        player.y + player.height/2,
-                        30,
-                        -Math.PI/2,
-                        -Math.PI/2 + Math.PI * 2 * percentage
-                    );
-                    ctx.strokeStyle = powerUpTypes[activePowerUp].color;
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                }
-                
-                // Game over screen
-                if (!gameActive) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '36px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Game Over', canvas.width/2, canvas.height/2 - 40);
-                    
-                    ctx.font = '24px Arial';
-                    ctx.fillText(`Score: ${score} - Level: ${level}`, canvas.width/2, canvas.height/2);
-                    
-                    ctx.font = '20px Arial';
-                    ctx.fillText('Tap to restart', canvas.width/2, canvas.height/2 + 40);
-                    
-                    ctx.textAlign = 'left';
-                }
-            }
-            
-            // Game loop
-            function gameLoop(timestamp) {
-                // Calculate delta time for smooth animations
-                const deltaTime = timestamp - lastTime || 0;
-                lastTime = timestamp;
-                
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw background
-                drawBackground();
-                
-                if (gameActive && !levelComplete) {
-                    // Update and draw game elements
-                    platforms.forEach(drawPlatform);
-                    candles.forEach(drawCandle);
-                    enemies.forEach(drawEnemy);
-                    powerUps.forEach(drawPowerUp);
-                    drawExit(exit);
-                    
-                    // Update and draw player
-                    player.update();
-                    player.draw();
-                }
-                
-                // Draw UI elements
-                drawUI();
-                
-                // Continue animation
-                animationId = requestAnimationFrame(gameLoop);
-            }
-            
-            // Event listeners
-            
-            // Mute button
-            muteButton.addEventListener('click', function() {
-                isMuted = !isMuted;
-                muteButton.textContent = isMuted ? '🔇' : '🔊';
-            });
-            
-            // Menu buttons
-                startButton.addEventListener('click', function() {
-                    alert('Start button clicked!'); // Use an alert instead of console.log
-                    
-                    console.log('Button:', startButton);
-                    console.log('Menu Screen Display:', menuScreen.style.display);
-                    
-                    debugger; // This will pause execution in developer tools
-                    
-                    menuScreen.style.display = 'none';
-                    score = 0;
-                    level = 1;
-                    loadLevel(1);
-                    gameActive = true;
-                    lastTime = 0;
-                    animationId = requestAnimationFrame(gameLoop);
-                });
-            
-            restartButton.addEventListener('click', function() {
-                gameOverScreen.style.display = 'none';
-                score = 0;
-                level = 1;
-                loadLevel(1);
-            });
-            
-            menuButton.addEventListener('click', function() {
-                gameOverScreen.style.display = 'none';
-                menuScreen.style.display = 'flex';
-            });
-            
-            nextLevelButton.addEventListener('click', function() {
-                levelCompleteScreen.style.display = 'none';
-                level++;
-                loadLevel(level);
-            });
-            
-            // Touch controls
-            const joystickArea = document.getElementById('joystickArea');
-            const joystick = document.getElementById('joystick');
-            const jumpBtn = document.getElementById('jumpBtn');
-            
-            let joystickActive = false;
-            let joystickStartX = 0;
-            
-            // Improved touch handling for joystick
-            joystickArea.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = joystickArea.getBoundingClientRect();
-                joystickStartX = touch.clientX - rect.left;
-                joystickActive = true;
-                
-                // Position joystick at touch point
-                joystick.style.left = joystickStartX + 'px';
-            });
-            
-            joystickArea.addEventListener('touchmove', function(e) {
-                if (!joystickActive) return;
-                e.preventDefault();
-                
-                const touch = e.touches[0];
-                const rect = joystickArea.getBoundingClientRect();
-                const joystickX = touch.clientX - rect.left - joystickStartX;
-                
-                // Calculate joystick position with limits
-                const maxDistance = 35;
-                const limitedX = Math.max(-maxDistance, Math.min(maxDistance, joystickX));
-                joystick.style.transform = `translate(calc(-50% + ${limitedX}px), -50%)`;
-                
-                // Update player direction
-                if (limitedX < -10) {
-                    keys.left = true;
-                    keys.right = false;
-                } else if (limitedX > 10) {
-                    keys.right = true;
-                    keys.left = false;
-                } else {
-                    keys.left = false;
-                    keys.right = false;
-                }
-            });
-            
-            joystickArea.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                joystickActive = false;
-                keys.left = false;
-                keys.right = false;
-                joystick.style.transform = 'translate(-50%, -50%)';
-                joystick.style.left = '50%';
-            });
-            
-            jumpBtn.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                keys.up = true;
-            });
-            
-            jumpBtn.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                keys.up = false;
-            });
-            
-            // Keyboard controls for desktop
-            window.addEventListener('keydown', function(e) {
-                if (e.key === 'ArrowLeft') keys.left = true;
-                if (e.key === 'ArrowRight') keys.right = true;
-                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = true;
-                
-                // Enter key for menu navigation
-                if (e.key === 'Enter') {
-                    if (menuScreen.style.display !== 'none') {
-                        startButton.click();
-                    } else if (gameOverScreen.style.display !== 'none') {
-                        restartButton.click();
-                    } else if (levelCompleteScreen.style.display !== 'none') {
-                        nextLevelButton.click();
-                    }
-                }
-                
-                // M key for mute toggle
-                if (e.key === 'm') {
-                    muteButton.click();
-                }
-            });
-            
-            window.addEventListener('keyup', function(e) {
-                if (e.key === 'ArrowLeft') keys.left = false;
-                if (e.key === 'ArrowRight') keys.right = false;
-                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
-            });
-            
-            // Handle canvas clicks for screens
-            canvas.addEventListener('click', function() {
-                if (!gameActive && gameOverScreen.style.display !== 'none') {
-                    restartButton.click();
-                }
-            });
-            
-            // Handle window resize
-            function resizeCanvas() {
-                const container = gameContainer;
-                const maxWidth = container.clientWidth;
-                const maxHeight = container.clientHeight;
-                const ratio = canvas.width / canvas.height;
-                
-                let newWidth, newHeight;
-                
-                if (maxWidth / maxHeight > ratio) {
-                    newHeight = maxHeight;
-                    newWidth = newHeight * ratio;
-                } else {
-                    newWidth = maxWidth;
-                    newHeight = newWidth / ratio;
-                }
-                
-                canvas.style.width = newWidth + 'px';
-                canvas.style.height = newHeight + 'px';
-                
-                // Center the canvas
-                canvas.style.left = (maxWidth - newWidth) / 2 + 'px';
-                canvas.style.top = (maxHeight - newHeight) / 2 + 'px';
-            }
-            
-            window.addEventListener('resize', resizeCanvas);
-            window.addEventListener('orientationchange', resizeCanvas);
-            
-            // Detect mobile devices for control optimization
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            // Adjust controls visibility based on device
-            if (!isMobile) {
-                // Add instructions for desktop
-                const instructions = document.createElement('div');
-                instructions.style.position = 'absolute';
-                instructions.style.bottom = '60px';
-                instructions.style.width = '100%';
-                instructions.style.textAlign = 'center';
-                instructions.style.color = 'white';
-                instructions.style.fontSize = '16px';
-                instructions.textContent = 'Use Arrow Keys to move, Space to jump';
-                gameContainer.appendChild(instructions);
-            }
-            
-            // Initialize audio
-            function initAudio() {
-                // Set low volume 
-                for (const sound in sounds) {
-                    sounds[sound].volume = 0.3;
-                }
-                
-                // Preload sounds
-                for (const sound in sounds) {
-                    // Attempt to load and immediately pause
-                    const promise = sounds[sound].play();
-                    if (promise !== undefined) {
-                        promise.then(() => {
-                            sounds[sound].pause();
-                            sounds[sound].currentTime = 0;
-                        }).catch(e => {
-                            // Autoplay prevented, that's okay
-                            console.log("Audio preload prevented:", e);
-                        });
-                    }
-                }
-            }
-            
-            // Initialize audio on first user interaction
-            gameContainer.addEventListener('click', function audioInit() {
-                initAudio();
-                gameContainer.removeEventListener('click', audioInit);
-            }, { once: true });
-            
-            // Initial setup
-            resizeCanvas();
-            updateHighScoresList();
-            
-            // Show menu screen
-            menuScreen.style.display = 'flex';
-            gameOverScreen.style.display = 'none';
-            levelCompleteScreen.style.display = 'none';
-        });
-                                  
+                 
