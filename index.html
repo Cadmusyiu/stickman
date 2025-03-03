@@ -186,8 +186,9 @@
                 },
 
                 updateScoreDisplay() {
-                    // Implementation is missing in original code
-                    // Adding simple implementation
+                    // Simple implementation to display score
+                    // This function gets called when the score updates
+                    console.log("Score updated: " + this.score);
                 },
 
                 saveHighScore() {
@@ -577,6 +578,8 @@
                     const currentLevel = levels[gameState.currentLevel];
                     if (!currentLevel || !currentLevel.collectibles) return;
                     
+                    let collectedItem = false;
+                    
                     currentLevel.collectibles = currentLevel.collectibles.filter(collectible => {
                         if (
                             player.x < collectible.x + collectible.width &&
@@ -588,17 +591,25 @@
                             if (collectible.type === 'flame') {
                                 gameState.updateScore(collectible.value);
                                 player.flameSize = Math.min(100, player.flameSize + 20);
+                                console.log("Collected flame! Score: " + gameState.score);
                             } else if (collectible.type === 'powerup') {
                                 // Apply power-up effect
                                 player.invincible = true;
+                                console.log("Got powerup! Invincible for 3 seconds");
                                 setTimeout(() => {
                                     player.invincible = false;
                                 }, 3000);
                             }
+                            collectedItem = true;
                             return false; // Remove collectible
                         }
                         return true;
                     });
+                    
+                    // If we collected an item, check if level is complete
+                    if (collectedItem && currentLevel.collectibles.length === 0) {
+                        console.log("All collectibles gathered. Collectibles remaining: " + currentLevel.collectibles.length);
+                    }
                 } catch (error) {
                     console.error("Error checking collectible collision:", error);
                 }
@@ -644,6 +655,7 @@
 
                     // Level complete condition
                     if (currentLevel.collectibles && currentLevel.collectibles.length === 0) {
+                        console.log("Level complete! Advancing to next level");
                         advanceLevel();
                     }
 
@@ -679,6 +691,16 @@
                     player.y = 350;
                     player.flameSize = 100;
                     player.invincible = false;
+                    
+                    // Reset level collectibles
+                    levels.forEach(level => {
+                        if (level.originalCollectibles) {
+                            level.collectibles = JSON.parse(JSON.stringify(level.originalCollectibles));
+                        } else {
+                            // Store original collectibles first time
+                            level.originalCollectibles = JSON.parse(JSON.stringify(level.collectibles));
+                        }
+                    });
 
                     // Hide menu, show game
                     menuOverlay.style.display = 'none';
@@ -696,19 +718,30 @@
             }
 
             function endGame() {
+                console.log("Game over!");
                 gameState.gameActive = false;
                 gameState.saveHighScore();
 
                 // Show game over overlay
                 gameOverlay.style.display = 'flex';
                 document.getElementById('finalScore').textContent = `Score: ${gameState.score}`;
+                
+                // Reset the game's collected items for next play
+                for (let i = 0; i < levels.length; i++) {
+                    const level = levels[i];
+                    if (level.originalCollectibles) {
+                        level.collectibles = JSON.parse(JSON.stringify(level.originalCollectibles));
+                    }
+                }
             }
 
             function advanceLevel() {
                 gameState.currentLevel++;
+                console.log("Advancing to level: " + gameState.currentLevel);
 
                 // Check if all levels completed
                 if (gameState.currentLevel >= levels.length) {
+                    console.log("All levels completed!");
                     endGame();
                     return;
                 }
@@ -717,6 +750,9 @@
                 player.x = 100;
                 player.y = 350;
                 player.flameSize = 100;
+                
+                // Add bonus points for completing level
+                gameState.updateScore(50);
             }
 
             // Event Listeners
