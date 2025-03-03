@@ -5,30 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flame Walker: Stick Man Adventure</title>
     <style>
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes flameFlicker {
+            0% { text-shadow: 0 0 10px #ff4500, 0 0 20px #ff4500, 0 0 30px #ff4500; }
+            50% { text-shadow: 0 0 15px #ff8c00, 0 0 25px #ff8c00, 0 0 35px #ff8c00; }
+            100% { text-shadow: 0 0 10px #ff4500, 0 0 20px #ff4500, 0 0 30px #ff4500; }
+        }
+        
+        @keyframes floatAnimation {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        
         body {
             margin: 0;
             padding: 0;
             font-family: 'Arial', sans-serif;
-            background-color: #000;
+            background: linear-gradient(-45deg, #240b36, #c31432, #7f5a83, #c31432);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
         }
+        
         canvas {
             max-width: 100%;
             max-height: 100%;
             background-color: #222;
-            display: block; /* Ensure canvas is displayed as block */
+            display: block;
+            box-shadow: 0 0 20px rgba(255, 69, 0, 0.7);
+            border-radius: 10px;
         }
+        
         #menuOverlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.7);
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="none" stroke="rgba(255,69,0,0.1)" stroke-width="2"/></svg>');
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -37,25 +62,197 @@
             color: white;
             text-align: center;
         }
+        
         #startButton {
-            padding: 10px 20px;
+            padding: 15px 30px;
             font-size: 24px;
-            background-color: #ff4500;
+            background: linear-gradient(to right, #ff4500, #ff8c00);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 50px;
             cursor: pointer;
             margin: 20px 0;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 69, 0, 0.4);
+            position: relative;
+            overflow: hidden;
         }
+        
         #startButton:hover {
-            transform: scale(1.1);
+            transform: scale(1.05) translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 69, 0, 0.6);
         }
+        
+        #startButton:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(255, 69, 0, 0.3);
+        }
+        
+        #startButton::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%, -50%);
+            transform-origin: 50% 50%;
+        }
+        
+        #startButton:focus:not(:active)::after {
+            animation: ripple 1s ease-out;
+        }
+        
+        @keyframes ripple {
+            0% {
+                transform: scale(0, 0);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(20, 20);
+                opacity: 0;
+            }
+        }
+        #titleContainer {
+            position: relative;
+            margin-bottom: 20px;
+            animation: floatAnimation 3s ease-in-out infinite;
+        }
+        
+        #gameTitle {
+            color: #ff4500;
+            font-size: 64px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            animation: flameFlicker 2s infinite;
+            font-family: 'Arial Black', sans-serif;
+            text-shadow: 0 0 10px #ff4500, 0 0 20px #ff4500;
+            position: relative;
+        }
+        
+        #animatedFlame {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .flame-wrapper {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            transform: rotate(180deg) scale(0.8);
+        }
+        
+        .flame {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0px;
+            height: 0px;
+            transform: translateX(-50%) rotate(45deg);
+            border-radius: 10px 10px 10px 0;
+            transform-origin: center bottom;
+            opacity: 0.8;
+        }
+        
+        .red {
+            width: 60px;
+            height: 60px;
+            background-color: #ff4500;
+            box-shadow: 0 0 10px 5px rgba(255, 69, 0, 0.7);
+            animation: flicker1 1s ease-in-out infinite;
+        }
+        
+        .orange {
+            width: 45px;
+            height: 45px;
+            background-color: #ff8c00;
+            box-shadow: 0 0 10px 5px rgba(255, 140, 0, 0.7);
+            animation: flicker2 1s ease-in-out infinite;
+        }
+        
+        .gold {
+            width: 30px;
+            height: 30px;
+            background-color: #ffcc00;
+            box-shadow: 0 0 10px 5px rgba(255, 204, 0, 0.7);
+            animation: flicker3 .8s ease-in-out infinite;
+        }
+        
+        .white {
+            width: 15px;
+            height: 15px;
+            background-color: white;
+            box-shadow: 0 0 10px 5px rgba(255, 255, 255, 0.7);
+            animation: flicker4 .5s ease-in-out infinite;
+        }
+        
+        @keyframes flicker1 {
+            0%, 100% { transform: translateX(-50%) rotate(45deg) scale(1.0); }
+            50% { transform: translateX(-50%) rotate(45deg) scale(0.95); }
+        }
+        
+        @keyframes flicker2 {
+            0%, 100% { transform: translateX(-50%) rotate(45deg) scale(1.0); }
+            50% { transform: translateX(-53%) rotate(42deg) scale(0.9); }
+        }
+        
+        @keyframes flicker3 {
+            0%, 100% { transform: translateX(-50%) rotate(45deg) scale(1.0); }
+            50% { transform: translateX(-47%) rotate(48deg) scale(0.85); }
+        }
+        
+        @keyframes flicker4 {
+            0%, 100% { transform: translateX(-50%) rotate(45deg) scale(1.0); }
+            50% { transform: translateX(-51%) rotate(43deg) scale(0.8); }
+        }
+        
+        #stickman-animation {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            margin-bottom: 30px;
+        }
+        
+        .stickman-character {
+            width: 40px;
+            height: 80px;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 80"><circle cx="20" cy="10" r="10" stroke="white" stroke-width="2" fill="none"/><line x1="20" y1="20" x2="20" y2="50" stroke="white" stroke-width="2"/><line x1="20" y1="50" x2="10" y2="70" stroke="white" stroke-width="2"/><line x1="20" y1="50" x2="30" y2="70" stroke="white" stroke-width="2"/><line x1="20" y1="30" x2="5" y2="35" stroke="white" stroke-width="2"/><line x1="20" y1="30" x2="35" y2="35" stroke="white" stroke-width="2"/><circle cx="20" cy="5" r="2" fill="orange"/><path d="M15 2 Q20 -5 25 2" stroke="orange" stroke-width="2" fill="none"/></svg>');
+            background-repeat: no-repeat;
+            animation: walkAnimation 2s infinite linear;
+        }
+        
+        @keyframes walkAnimation {
+            0%, 100% { transform: translateX(-50%) rotate(0deg); }
+            25% { transform: translateX(-30%) rotate(-5deg); }
+            50% { transform: translateX(-50%) rotate(0deg); }
+            75% { transform: translateX(-70%) rotate(5deg); }
+        }
+        
         #highScores {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,100,30,0.2);
             padding: 20px;
             border-radius: 10px;
             max-width: 300px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 69, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        #highScores:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
         }
         #controls {
             position: absolute;
@@ -123,7 +320,20 @@
 </head>
 <body>
     <div id="menuOverlay">
-        <h1 style="color: #ff4500; font-size: 48px;">Flame Walker</h1>
+        <div id="titleContainer">
+            <h1 id="gameTitle">Flame Walker</h1>
+            <div id="animatedFlame">
+                <div class="flame-wrapper">
+                    <div class="flame red"></div>
+                    <div class="flame orange"></div>
+                    <div class="flame gold"></div>
+                    <div class="flame white"></div>
+                </div>
+            </div>
+        </div>
+        <div id="stickman-animation">
+            <div class="stickman-character"></div>
+        </div>
         <button id="startButton">START GAME</button>
         <div id="highScores">
             <h2>High Scores</h2>
@@ -593,48 +803,191 @@
 
                 draw(ctx) {
                     try {
-                        // Stick figure drawing logic with flame
-                        ctx.strokeStyle = this.invincible ? 'cyan' : 'red';
-                        ctx.lineWidth = 2;
-
-                        // Head
+                        ctx.save();
+                        
+                        // Apply a slight perspective transformation
+                        const centerX = this.x + this.width/2;
+                        const scale = 1.0; // Base scale
+                        
+                        // Create shadow for 3D effect
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                        ctx.shadowBlur = 5;
+                        ctx.shadowOffsetX = 3;
+                        ctx.shadowOffsetY = 3;
+                        
+                        // Create gradient for better 3D effect
+                        const gradient = ctx.createLinearGradient(
+                            centerX - 15, this.y, centerX + 15, this.y + 40
+                        );
+                        
+                        if (this.invincible) {
+                            gradient.addColorStop(0, 'rgb(0, 255, 255)');
+                            gradient.addColorStop(1, 'rgb(0, 200, 200)');
+                            ctx.strokeStyle = gradient;
+                        } else {
+                            gradient.addColorStop(0, 'rgb(255, 50, 50)');
+                            gradient.addColorStop(1, 'rgb(200, 0, 0)');
+                            ctx.strokeStyle = gradient;
+                        }
+                        
+                        ctx.lineWidth = 3;
+                        
+                        // Walking animation
+                        let legOffsetL = 0;
+                        let legOffsetR = 0;
+                        let armOffsetL = 0;
+                        let armOffsetR = 0;
+                        
+                        // Only animate if moving horizontally
+                        if (Math.abs(this.velocityX) > 0.1) {
+                            const walkCycle = (Date.now() % 1000) / 1000;
+                            legOffsetL = Math.sin(walkCycle * Math.PI * 2) * 5;
+                            legOffsetR = -Math.sin(walkCycle * Math.PI * 2) * 5;
+                            armOffsetL = -Math.sin(walkCycle * Math.PI * 2) * 3;
+                            armOffsetR = Math.sin(walkCycle * Math.PI * 2) * 3;
+                        }
+                        
+                        // Head - with gradient and highlight
+                        const headGradient = ctx.createRadialGradient(
+                            centerX + 2, this.y - 2, 1, 
+                            centerX, this.y, 10
+                        );
+                        
+                        if (this.invincible) {
+                            headGradient.addColorStop(0, 'white');
+                            headGradient.addColorStop(0.7, 'cyan');
+                            headGradient.addColorStop(1, 'blue');
+                        } else {
+                            headGradient.addColorStop(0, 'white');
+                            headGradient.addColorStop(0.7, 'red');
+                            headGradient.addColorStop(1, 'darkred');
+                        }
+                        
                         ctx.beginPath();
-                        ctx.arc(this.x + this.width/2, this.y, 10, 0, Math.PI * 2);
+                        ctx.arc(centerX, this.y, 10, 0, Math.PI * 2);
+                        ctx.fillStyle = headGradient;
+                        ctx.fill();
                         ctx.stroke();
-
+                        
+                        // Draw eyes
+                        ctx.fillStyle = 'white';
+                        ctx.beginPath();
+                        ctx.arc(centerX - 3, this.y - 2, 2, 0, Math.PI * 2);
+                        ctx.arc(centerX + 3, this.y - 2, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.fillStyle = 'black';
+                        ctx.beginPath();
+                        
+                        // Eyes look in direction of movement
+                        let eyeOffsetX = 0;
+                        if (this.velocityX > 0.1) eyeOffsetX = 0.5;
+                        if (this.velocityX < -0.1) eyeOffsetX = -0.5;
+                        
+                        ctx.arc(centerX - 3 + eyeOffsetX, this.y - 2, 1, 0, Math.PI * 2);
+                        ctx.arc(centerX + 3 + eyeOffsetX, this.y - 2, 1, 0, Math.PI * 2);
+                        ctx.fill();
+                        
                         // Body
                         ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2, this.y + 10);
-                        ctx.lineTo(this.x + this.width/2, this.y + 30);
+                        ctx.moveTo(centerX, this.y + 10);
+                        ctx.lineTo(centerX, this.y + 30);
                         ctx.stroke();
-
-                        // Arms
+                        
+                        // Arms with animation
                         ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2 - 10, this.y + 20);
-                        ctx.lineTo(this.x + this.width/2, this.y + 20);
-                        ctx.lineTo(this.x + this.width/2 + 10, this.y + 20);
+                        ctx.moveTo(centerX, this.y + 15);
+                        ctx.lineTo(centerX - 10, this.y + 20 + armOffsetL);
+                        ctx.moveTo(centerX, this.y + 15);
+                        ctx.lineTo(centerX + 10, this.y + 20 + armOffsetR);
                         ctx.stroke();
-
-                        // Legs
-                        ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(this.x + this.width/2 - 8, this.y + 40);
-                        ctx.moveTo(this.x + this.width/2, this.y + 30);
-                        ctx.lineTo(this.x + this.width/2 + 8, this.y + 40);
-                        ctx.stroke();
-
-                        // Flame with dynamic size
+                        
+                        // Legs with animation - jumping or walking
+                        if (this.isJumping) {
+                            // Jumping pose
+                            ctx.beginPath();
+                            ctx.moveTo(centerX, this.y + 30);
+                            ctx.lineTo(centerX - 10, this.y + 35);
+                            ctx.moveTo(centerX, this.y + 30);
+                            ctx.lineTo(centerX + 10, this.y + 35);
+                            ctx.stroke();
+                        } else {
+                            // Walking animation
+                            ctx.beginPath();
+                            ctx.moveTo(centerX, this.y + 30);
+                            ctx.lineTo(centerX - 8, this.y + 40 + legOffsetL);
+                            ctx.moveTo(centerX, this.y + 30);
+                            ctx.lineTo(centerX + 8, this.y + 40 + legOffsetR);
+                            ctx.stroke();
+                        }
+                        
+                        // Advanced flame with dynamic size and multi-layer
                         const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
+                        const flameScale = this.flameSize / 100;
+                        
+                        // Outer flame glow
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = 'rgba(255, 100, 0, 0.7)';
+                        
+                        // Base flame
+                        const flameGradient = ctx.createRadialGradient(
+                            centerX, this.y - 15, 1,
+                            centerX, this.y - 15, flameHeight * flameScale
+                        );
+                        flameGradient.addColorStop(0, 'rgba(255, 255, 200, 0.9)');
+                        flameGradient.addColorStop(0.4, 'rgba(255, 150, 0, 0.8)');
+                        flameGradient.addColorStop(0.7, 'rgba(255, 50, 0, 0.6)');
+                        flameGradient.addColorStop(1, 'rgba(200, 0, 0, 0)');
+                        
                         ctx.beginPath();
-                        ctx.moveTo(this.x + this.width/2 - 5, this.y - 10);
+                        ctx.moveTo(centerX - 5, this.y - 10);
                         ctx.quadraticCurveTo(
-                            this.x + this.width/2, 
-                            this.y - 10 - flameHeight * (this.flameSize / 100), 
-                            this.x + this.width/2 + 5, 
+                            centerX, 
+                            this.y - 10 - flameHeight * flameScale, 
+                            centerX + 5, 
                             this.y - 10
                         );
-                        ctx.fillStyle = 'orange';
+                        ctx.fillStyle = flameGradient;
                         ctx.fill();
+                        
+                        // Inner flame (brighter)
+                        const innerFlameHeight = flameHeight * 0.7;
+                        const innerFlameGradient = ctx.createRadialGradient(
+                            centerX, this.y - 13, 1,
+                            centerX, this.y - 13, innerFlameHeight * flameScale
+                        );
+                        innerFlameGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                        innerFlameGradient.addColorStop(0.5, 'rgba(255, 250, 150, 0.8)');
+                        innerFlameGradient.addColorStop(1, 'rgba(255, 200, 0, 0)');
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(centerX - 3, this.y - 10);
+                        ctx.quadraticCurveTo(
+                            centerX, 
+                            this.y - 10 - innerFlameHeight * flameScale, 
+                            centerX + 3, 
+                            this.y - 10
+                        );
+                        ctx.fillStyle = innerFlameGradient;
+                        ctx.fill();
+                        
+                        // Flame particles for effect
+                        if (this.flameSize > 30) {
+                            const particleCount = Math.floor(this.flameSize / 20);
+                            for (let i = 0; i < particleCount; i++) {
+                                const t = Date.now() / 1000 + i;
+                                const x = centerX + Math.sin(t * 5 + i) * 3;
+                                const y = this.y - 15 - (Math.sin(t * 3) + 1) * 5 * flameScale;
+                                const size = 1 + Math.sin(t * 2) * 1;
+                                
+                                ctx.beginPath();
+                                ctx.arc(x, y, size, 0, Math.PI * 2);
+                                ctx.fillStyle = `rgba(255, ${150 + Math.random() * 100}, 0, ${0.7 * flameScale})`;
+                                ctx.fill();
+                            }
+                        }
+                        
+                        ctx.restore();
                     } catch (error) {
                         console.error("Error drawing player:", error);
                     }
@@ -752,6 +1105,34 @@
                     
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Add depth with parallax background elements based on level type
+                    const time = Date.now() / 10000;
+                    
+                    // Add stars, clouds, or other background elements based on level name
+                    if (level.name.includes("Mountain") || level.name.includes("Highland")) {
+                        // Draw distant mountains
+                        drawMountainBackground();
+                    } else if (level.name.includes("Desert")) {
+                        // Draw desert background
+                        drawDesertBackground();
+                    } else if (level.name.includes("Forest")) {
+                        // Draw forest background
+                        drawForestBackground();
+                    } else if (level.name.includes("Ice") || level.name.includes("Storm")) {
+                        // Draw clouds or snowflakes
+                        drawCloudBackground();
+                    } else if (level.name.includes("Volcano") || level.name.includes("Flame")) {
+                        // Draw volcanic or flame elements
+                        drawVolcanicBackground();
+                    } else if (level.name.includes("Ruin") || level.name.includes("Underground")) {
+                        // Draw ruins or cave elements
+                        drawRuinsBackground();
+                    }
+                    
+                    // Add shared atmospheric effects
+                    drawAtmosphericParticles(level);
+                    
                 } catch (error) {
                     console.error("Error drawing background:", error);
                     // Fallback to solid color
@@ -759,13 +1140,296 @@
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                 }
             }
+            
+            function drawMountainBackground() {
+                // Draw distant mountains with parallax effect
+                ctx.fillStyle = 'rgba(60, 60, 80, 0.5)';
+                
+                // Far mountains
+                ctx.beginPath();
+                ctx.moveTo(0, 300);
+                ctx.lineTo(100, 250);
+                ctx.lineTo(200, 290);
+                ctx.lineTo(350, 200);
+                ctx.lineTo(450, 250);
+                ctx.lineTo(550, 230);
+                ctx.lineTo(650, 280);
+                ctx.lineTo(800, 260);
+                ctx.lineTo(800, 300);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Closer mountains
+                ctx.fillStyle = 'rgba(80, 80, 100, 0.4)';
+                ctx.beginPath();
+                ctx.moveTo(0, 320);
+                ctx.lineTo(50, 290);
+                ctx.lineTo(150, 320);
+                ctx.lineTo(250, 270);
+                ctx.lineTo(350, 310);
+                ctx.lineTo(450, 280);
+                ctx.lineTo(600, 320);
+                ctx.lineTo(700, 290);
+                ctx.lineTo(800, 330);
+                ctx.lineTo(800, 350);
+                ctx.lineTo(0, 350);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            function drawDesertBackground() {
+                // Draw distant sand dunes
+                const time = Date.now() / 10000;
+                
+                // Distant dunes
+                ctx.fillStyle = 'rgba(210, 180, 140, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(0, 320);
+                
+                for (let x = 0; x <= canvas.width; x += 50) {
+                    const y = 320 + Math.sin((x / 100) + time) * 20;
+                    ctx.lineTo(x, y);
+                }
+                
+                ctx.lineTo(canvas.width, 350);
+                ctx.lineTo(0, 350);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Draw some cacti silhouettes
+                ctx.fillStyle = 'rgba(30, 100, 30, 0.2)';
+                for (let i = 0; i < 5; i++) {
+                    const x = 100 + i * 160;
+                    const y = 320;
+                    const height = 20 + i * 5;
+                    
+                    ctx.beginPath();
+                    ctx.rect(x, y - height, 5, height);
+                    if (i % 2 === 0) {
+                        ctx.rect(x - 10, y - height + 10, 10, 5);
+                        ctx.rect(x + 5, y - height + 15, 8, 5);
+                    } else {
+                        ctx.rect(x + 5, y - height + 5, 12, 5);
+                    }
+                    ctx.fill();
+                }
+            }
+            
+            function drawForestBackground() {
+                // Draw distant trees
+                ctx.fillStyle = 'rgba(30, 80, 30, 0.3)';
+                
+                for (let i = 0; i < 20; i++) {
+                    const x = i * 40;
+                    const y = 320;
+                    const height = 30 + (i % 3) * 10;
+                    
+                    // Tree trunk
+                    ctx.fillRect(x + 18, y - height + 20, 4, height - 20);
+                    
+                    // Tree top
+                    ctx.beginPath();
+                    ctx.moveTo(x + 10, y - height + 20);
+                    ctx.lineTo(x + 20, y - height);
+                    ctx.lineTo(x + 30, y - height + 20);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x + 8, y - height + 30);
+                    ctx.lineTo(x + 20, y - height + 10);
+                    ctx.lineTo(x + 32, y - height + 30);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+            
+            function drawCloudBackground() {
+                const time = Date.now() / 5000;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                
+                for (let i = 0; i < 6; i++) {
+                    const x = ((i * 150) + time * 50) % canvas.width;
+                    const y = 100 + (i % 3) * 40;
+                    
+                    // Draw cloud shape
+                    ctx.beginPath();
+                    ctx.arc(x, y, 20, 0, Math.PI * 2);
+                    ctx.arc(x + 15, y - 10, 25, 0, Math.PI * 2);
+                    ctx.arc(x + 35, y, 20, 0, Math.PI * 2);
+                    ctx.arc(x + 20, y + 10, 15, 0, Math.PI * 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+            
+            function drawVolcanicBackground() {
+                // Draw volcano silhouette
+                ctx.fillStyle = 'rgba(80, 30, 30, 0.4)';
+                ctx.beginPath();
+                ctx.moveTo(0, 350);
+                ctx.lineTo(250, 350);
+                ctx.lineTo(400, 150);
+                ctx.lineTo(550, 350);
+                ctx.lineTo(800, 350);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Draw lava glow
+                const gradient = ctx.createRadialGradient(400, 150, 10, 400, 150, 100);
+                gradient.addColorStop(0, 'rgba(255, 200, 0, 0.3)');
+                gradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.2)');
+                gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(400, 150, 100, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Draw occasional embers
+                if (Math.random() < 0.05) {
+                    const emberCount = 5 + Math.floor(Math.random() * 5);
+                    
+                    ctx.fillStyle = 'rgba(255, 200, 0, 0.7)';
+                    for (let i = 0; i < emberCount; i++) {
+                        const x = 380 + Math.random() * 40;
+                        const y = 145 + Math.random() * 10;
+                        const size = 1 + Math.random() * 2;
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            function drawRuinsBackground() {
+                // Draw distant pillars or ruins
+                ctx.fillStyle = 'rgba(150, 140, 120, 0.3)';
+                
+                for (let i = 0; i < 8; i++) {
+                    const x = 50 + i * 100;
+                    const y = 350;
+                    const height = 40 + (i % 4) * 20;
+                    
+                    // Draw pillar
+                    ctx.beginPath();
+                    ctx.rect(x, y - height, 20, height);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Draw top of pillar
+                    ctx.beginPath();
+                    ctx.rect(x - 5, y - height - 10, 30, 10);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Add some cracks
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.beginPath();
+                    ctx.moveTo(x + 5, y - height + 10);
+                    ctx.lineTo(x + 10, y - height + 20);
+                    ctx.lineTo(x + 5, y - height + 30);
+                    ctx.stroke();
+                }
+            }
+            
+            function drawAtmosphericParticles(level) {
+                const time = Date.now() / 1000;
+                
+                // Different particles based on level type
+                if (level.name.includes("Desert")) {
+                    // Draw dust particles
+                    ctx.fillStyle = 'rgba(210, 180, 140, 0.2)';
+                    for (let i = 0; i < 20; i++) {
+                        const x = (Math.sin(time + i) * 100 + i * 40) % canvas.width;
+                        const y = (Math.cos(time + i) * 50 + 150 + i * 10) % canvas.height;
+                        const size = 1 + Math.sin(time + i) * 0.5;
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                } else if (level.name.includes("Ice")) {
+                    // Draw snow particles
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    for (let i = 0; i < 30; i++) {
+                        const x = (Math.sin(time + i) * 200 + i * 30) % canvas.width;
+                        const y = ((time * 20 + i * 20) % canvas.height);
+                        const size = 1 + Math.random();
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                } else if (level.name.includes("Volcano") || level.name.includes("Flame")) {
+                    // Draw floating embers
+                    ctx.fillStyle = 'rgba(255, 150, 0, 0.3)';
+                    for (let i = 0; i < 15; i++) {
+                        const x = (Math.sin(time + i) * 100 + i * 50) % canvas.width;
+                        const y = (canvas.height - (time * 30 + i * 20) % canvas.height);
+                        const size = 1 + Math.random() * 2;
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+            }
 
             function drawPlatforms(platforms) {
                 if (!platforms || !Array.isArray(platforms)) return;
                 
-                ctx.fillStyle = '#555';
                 platforms.forEach(platform => {
+                    // Create platform gradient for 3D effect
+                    const gradient = ctx.createLinearGradient(
+                        platform.x, platform.y, 
+                        platform.x, platform.y + platform.height
+                    );
+                    gradient.addColorStop(0, '#777');
+                    gradient.addColorStop(0.5, '#555');
+                    gradient.addColorStop(1, '#333');
+                    
+                    ctx.fillStyle = gradient;
+                    
+                    // Draw main platform with shadow
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    ctx.shadowBlur = 5;
+                    ctx.shadowOffsetX = 2;
+                    ctx.shadowOffsetY = 4;
+                    
                     ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                    
+                    // Reset shadow
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                    
+                    // Add highlight on top of platform
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fillRect(platform.x, platform.y, platform.width, 2);
+                    
+                    // Add texture/detail to platform
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                    
+                    // Create a pattern of small rectangles for texture
+                    const patternCount = Math.floor(platform.width / 15);
+                    for (let i = 0; i < patternCount; i++) {
+                        if (i % 2 === 0) {
+                            ctx.fillRect(
+                                platform.x + i * 15 + 2, 
+                                platform.y + 5, 
+                                10, 
+                                platform.height - 8
+                            );
+                        }
+                    }
                 });
             }
 
@@ -1123,9 +1787,83 @@
                 }, 2000);
             }
 
-            // Event Listeners
-            startButton.addEventListener('click', startGame);
-            restartButton.addEventListener('click', startGame);
+            // Event Listeners with animation feedback
+            startButton.addEventListener('click', function(e) {
+                // Add click animation
+                const button = e.target;
+                button.style.transform = 'scale(0.95)';
+                button.style.boxShadow = '0 2px 8px rgba(255, 69, 0, 0.3)';
+                
+                // Play sound effect
+                const startSound = new Audio('data:audio/wav;base64,UklGRjQnAABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0Yee/AAC/Df8NGwAbAD8ALwBaAEQAZABLAGEASwBTAEUARABSAEEAgQBlALEAvgDcAOQA9wD6AAcBDQEPARsBEgEqAR0BRgE6AWwBZwGdAZIBxwHFAfcB7gEYAhACMgIoAkcCPQJVAk4CZQJcAnMCZwJ+AnUChgJ5AocCeAKEAnQCgAJxAnsCbQJ0AmcCagJfAlwCUgJNAkQCPQI0Ai0CJQIgAh0CGQIaAhcCGQIVAhkCFQIaAhcCHQIaAiECHwIlAiQCKAInAioCKAIrAikCKwIpAioCKAInAiUCIwIhAh4CGwIYAhQCEQIPAgwCCQIGAgQCAQIAAv4B+wH4AfUB8wHwAe0B6wHoAeUB4wHgAd0B2gHYAdUB0gHQAc0BygHIAcUBwgHAAb0BuwG4AbUBswGwAa4BrAGpAacBpAGiAaABnQGbAZkBlwGVAZMBkAGOAYwBigGIAYYBhQGDAYEBfwF9AXwBegF4AXcBdQF0AXIBcQFvAW4BbQFrAWoBaQFoAWcBZgFlAWQBYwFiAWEBYQFgAV8BXwFeAV4BXQFdAVwBXAFcAVwBXAFcAVwBWwFcAVwBXAFcAV0BXQFeAV4BXwFfAWABYQFiAWMBZAFlAWYBZwFoAWkBawFsAW0BbwFwAXEBcwF1AXYBeAF6AXsBfQF/AYEBgwGFAYcBiQGLAY4BkAGSAZUBlwGaAZwBnwGhAaQBpwGpAawBrwGxAbQBtwG6Ab0BwAHDAcYByQHMAc8B0gHVAdgB3AHfAeIB5QHoAewB7wHyAfYB+QH8AQACBAIHAgsCDgISAhUCGQIcAiACJAInAisCLgIyAjUCOQI8AkACQwJHAkoCTgJSAlUCWQJcAmACYwJnAmoCbQJxAnQCeAJ7An4CggKFAokCjAKPApMClgKZAp0CoAKjAqYCqQKtArACtAK3AroCvQJWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA1YDVgNWA8MAwwCuAK4AngCeAI8AkAB+AH4AawBrAFcAVwBFAEUANgA2ACYAJgAZABkADQANAAIAAgD3//f/7f/t/+X/5f/d/93/1//X/9L/0v/N/83/yf/J/8b/xv/E/8T/wv/C/8H/wf/A/8D/wP/A/8D/wP/B/8H/wf/B/8P/w//F/8X/yP/I/8v/y//P/8//0//T/9j/2P/e/97/5P/k/+r/6v/x//H/+P/4/wAABQAMAAwAEwATABsAGwAjACMAKwArADMAMwA7AD0ARABGAEwATgBUAFYAWgBcAGEAZABoAGoAbgBwAHMAcwB2AHUAdwB3AHgAdwB3AHYAdQBzAHEAcABtAGkAZQBhAF0AWABTAFAASwBIAEEAPQA3ADUALgArACQAIQAaABkAEgAQAAoACQADAAEA+//6//X/9P/u/+3/6P/m/+H/4f/c/9v/1//W/9P/0v/P/87/zP/M/8n/yf/H/8f/xv/G/8X/xf/F/8X/xv/F/8b/xv/H/8f/yP/I/8n/yf/L/8r/zP/M/83/zf/O/87/z//P/9D/0P/R/9H/0v/S/9P/0//U/9T/1f/V/9b/1v/X/9f/2P/Y/9n/2v/b/9v/3P/c/97/3v/f/9//4f/h/+L/4v/k/+T/5f/l/+f/5//p/+n/6v/q/+z/7P/u/+7/8P/w//L/8v/0//T/9v/2//j/+P/6//r//P/8//7//v8BAAEAAwAEAAYABgAIAAgACwALAA0ADQAPABAAEgATABUAFQAXABgAGgAbAB0AHQAgACAAIgAjACUAJgAoACkAKwAsAC8ALwAxADIANQA1ADcAOQA7ADwAPwA/AEIAQwBFAEYASQBKAEwATQBQAFEAVABUAFcAWABbAFwAXwBgAGMAYwBmAGcAagBrAG4AbwByAHMAdgB3AHoAegB9AH4AgQCCAIUAhgCJAIoAjQCOAJEAkQCUAJUAmACZAJwAnQCgAKAAowCkAKcAqACtAJwAgQCOAHwAawCAAHEAZgB7AGwAYQB2AGcAXABxAGIAVwBsAF0AUgBnAFgATQBiAFMASABdAE4AQwBYAEkAPgBUAEQAOQBPAD8ANABKADoALwBGADUAKgBBADAAJQA8ACsAIAA3ACYAGwAyACEAFgAtABwAEQAoABcADAAjABIABwAeAA0AAgAZAAj//gAVAQMAvgDWANEAkAClAKIAbgB9AHkAUgBSAFAAOAAxADAAIwAUABQACAD6//n/7f/j/+L/1v/J/8j/vP+w/67/o/+Y/5f/jP+C/4D/df9r/2n/X/9V/1P/Sf9A/z7/NP8r/yn/H/8W/xT/Cf8B/wD/9v7v/u3+4v7c/tr+z/7J/sf+vf63/rX+q/6l/qP+mf6U/pL+iP6D/oH+d/5y/nD+Zv5h/l/+Vf5Q/k7+RP5A/j7+NP4v/i3+I/4f/h3+E/4P/g3+A/4A/v798/3w/e793P3Z/df9zf3K/cj9vv28/br9sP2u/az9ov2g/Z79lP2S/ZD9hp2SoZHM0eXQ/NEN0fna2doQGhsUGjMlKiVGLzkvfTZjNq00mjTQK7kr8hvyGy4MKgx49Xb1tOU35bLcr9zC2L/YK9cs12De3N3/7P/sWf9X/+UR5BH1HeIdYCU/JZ8ngyePJocmISIxIiQbKxvxEPQQowSjBCj4KPgT7RLte+J74vLZ79np1OjUtdG00e/P8M8=');
+                startSound.volume = 0.3;
+                startSound.play().catch(e => {
+                    // Audio play may fail, that's okay
+                    console.log("Audio couldn't play, ignoring:", e);
+                });
+                
+                // Create ripple effect
+                const ripple = document.createElement('span');
+                ripple.classList.add('ripple');
+                ripple.style.position = 'absolute';
+                ripple.style.background = 'rgba(255,255,255,0.7)';
+                ripple.style.borderRadius = '50%';
+                ripple.style.transform = 'scale(0)';
+                ripple.style.animation = 'ripple-effect 0.6s linear';
+                ripple.style.opacity = '1';
+                
+                // Add keyframes for ripple animation if needed
+                if (!document.querySelector('#ripple-keyframes')) {
+                    const style = document.createElement('style');
+                    style.id = 'ripple-keyframes';
+                    style.textContent = `
+                        @keyframes ripple-effect {
+                            0% { transform: scale(0); opacity: 1; }
+                            80% { transform: scale(1); opacity: 0.3; }
+                            100% { transform: scale(1); opacity: 0; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                // Position ripple at click point
+                const rect = button.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const diameter = Math.max(rect.width, rect.height) * 2;
+                ripple.style.width = `${diameter}px`;
+                ripple.style.height = `${diameter}px`;
+                ripple.style.left = `${x - diameter/2}px`;
+                ripple.style.top = `${y - diameter/2}px`;
+                
+                button.appendChild(ripple);
+                
+                // Remove ripple after animation completes
+                setTimeout(() => {
+                    ripple.remove();
+                    button.style.transform = '';
+                    button.style.boxShadow = '';
+                    
+                    // Start the game after visual feedback
+                    startGame();
+                }, 300);
+            });
+            
+            restartButton.addEventListener('click', function(e) {
+                // Add click animation
+                const button = e.target;
+                button.style.transform = 'scale(0.95)';
+                button.style.boxShadow = '0 2px 8px rgba(255, 69, 0, 0.3)';
+                
+                setTimeout(() => {
+                    button.style.transform = '';
+                    button.style.boxShadow = '';
+                    
+                    // Start the game after visual feedback
+                    startGame();
+                }, 200);
+            });
 
             // Initial Setup
             setupTouchControls();
