@@ -3,24 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stick Man Game</title>
+    <title>Flame Walker: Stick Man Adventure</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
+            font-family: 'Arial', sans-serif;
             background-color: #000;
+            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            touch-action: none;
         }
         canvas {
-            display: block;
-            background-color: #222;
             max-width: 100%;
             max-height: 100%;
+            background-color: #222;
+        }
+        #menuOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            color: white;
+            text-align: center;
+        }
+        #startButton {
+            padding: 10px 20px;
+            font-size: 24px;
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: transform 0.2s;
+        }
+        #startButton:hover {
+            transform: scale(1.1);
+        }
+        #highScores {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
         }
         #controls {
             position: absolute;
@@ -48,7 +82,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
         }
-        .control-btn {
+        #jumpBtn {
             width: 100px;
             height: 60px;
             background-color: rgba(255,255,255,0.3);
@@ -60,48 +94,147 @@
             color: white;
             user-select: none;
         }
+        #gameOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            color: white;
+        }
     </style>
 </head>
 <body>
+    <div id="menuOverlay">
+        <h1 style="color: #ff4500; font-size: 48px;">Flame Walker</h1>
+        <button id="startButton">START GAME</button>
+        <div id="highScores">
+            <h2>High Scores</h2>
+            <div id="highScoresList"></div>
+        </div>
+    </div>
+
+    <div id="gameOverlay">
+        <h1>Game Over</h1>
+        <p id="finalScore">Score: 0</p>
+        <button id="restartButton">Restart</button>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
+
     <div id="controls">
         <div id="joystickContainer">
             <div id="joystick"></div>
         </div>
-        <div class="control-btn" id="jumpBtn">JUMP</div>
+        <div id="jumpBtn">JUMP</div>
     </div>
 
     <script>
-        // Wait for everything to load
-        window.addEventListener('load', function() {
-            // Game setup
+        document.addEventListener('DOMContentLoaded', function() {
+            // Game Configuration
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
-            
-            // Set canvas size
+            const menuOverlay = document.getElementById('menuOverlay');
+            const gameOverlay = document.getElementById('gameOverlay');
+            const startButton = document.getElementById('startButton');
+            const restartButton = document.getElementById('restartButton');
+            const highScoresList = document.getElementById('highScoresList');
+
+            // Canvas Setup
             canvas.width = 800;
             canvas.height = 450;
-            
-            // Basic game variables
-            let lastTime = 0;
-            let animationId;
-            
-            // Controls
-            const keys = {
-                left: false,
-                right: false,
-                up: false
-            };
-            
-            // Game state
-            let gameState = {
-                active: true,
+
+            // Game State
+            const gameState = {
                 score: 0,
-                flameSize: 100,
-                level: 1
+                lives: 3,
+                currentLevel: 0,
+                gameActive: false,
+                highScores: [],
+
+                // Scoring Methods
+                updateScore(points) {
+                    this.score += points;
+                    this.updateScoreDisplay();
+                },
+
+                updateScoreDisplay() {
+                    // Implement score display logic
+                },
+
+                saveHighScore() {
+                    const newScore = {
+                        score: this.score,
+                        level: this.currentLevel + 1,
+                        date: new Date().toISOString()
+                    };
+
+                    this.highScores.push(newScore);
+                    this.highScores.sort((a, b) => b.score - a.score);
+                    this.highScores = this.highScores.slice(0, 5);
+
+                    localStorage.setItem('flameWalkerScores', JSON.stringify(this.highScores));
+                    this.displayHighScores();
+                },
+
+                displayHighScores() {
+                    highScoresList.innerHTML = this.highScores.map((score, index) => 
+                        `<div>${index + 1}. ${score.score} - Level ${score.level}</div>`
+                    ).join('');
+                },
+
+                loadHighScores() {
+                    const savedScores = localStorage.getItem('flameWalkerScores');
+                    if (savedScores) {
+                        this.highScores = JSON.parse(savedScores);
+                        this.displayHighScores();
+                    }
+                }
             };
-            
-            // Player
+
+            // Level Design
+            const levels = [
+                {
+                    name: "Forest Path",
+                    background: "linear-gradient(to bottom, #87CEEB, #228B22)",
+                    platforms: [
+                        { x: 0, y: 400, width: 200, height: 20 },
+                        { x: 250, y: 350, width: 150, height: 20 },
+                        { x: 450, y: 300, width: 150, height: 20 }
+                    ],
+                    obstacles: [
+                        { x: 300, y: 380, width: 50, height: 20, type: 'log' }
+                    ],
+                    collectibles: [
+                        { x: 400, y: 270, width: 20, height: 20, type: 'flame', value: 10 }
+                    ]
+                },
+                {
+                    name: "Mountain Pass",
+                    background: "linear-gradient(to bottom, #B0E0E6, #A0522D)",
+                    platforms: [
+                        { x: 0, y: 400, width: 150, height: 20 },
+                        { x: 200, y: 350, width: 150, height: 20 },
+                        { x: 400, y: 300, width: 150, height: 20 },
+                        { x: 600, y: 250, width: 150, height: 20 }
+                    ],
+                    obstacles: [
+                        { x: 250, y: 380, width: 70, height: 20, type: 'boulder' }
+                    ],
+                    collectibles: [
+                        { x: 300, y: 270, width: 20, height: 20, type: 'flame', value: 15 },
+                        { x: 500, y: 220, width: 20, height: 20, type: 'powerup', effect: 'speedBoost' }
+                    ]
+                }
+            ];
+
+            // Player Object
             const player = {
                 x: 100,
                 y: 350,
@@ -112,61 +245,82 @@
                 speed: 5,
                 jumpForce: 12,
                 isJumping: false,
-                
-                update() {
+                flameSize: 100,
+                invincible: false,
+
+                update(keys, currentLevel) {
                     // Apply gravity
                     this.velocityY += 0.5;
-                    
-                    // Apply movement
+
+                    // Movement
                     if (keys.left) this.velocityX = -this.speed;
                     else if (keys.right) this.velocityX = this.speed;
                     else this.velocityX = 0;
-                    
-                    // Apply jump
+
+                    // Jump
                     if (keys.up && !this.isJumping) {
                         this.velocityY = -this.jumpForce;
                         this.isJumping = true;
                     }
-                    
+
                     // Update position
                     this.x += this.velocityX;
                     this.y += this.velocityY;
-                    
-                    // Floor collision
-                    if (this.y > canvas.height - this.height) {
+
+                    // Platform collision
+                    const platforms = currentLevel.platforms;
+                    let onGround = false;
+                    platforms.forEach(platform => {
+                        if (
+                            this.x + this.width > platform.x &&
+                            this.x < platform.x + platform.width &&
+                            this.y + this.height > platform.y &&
+                            this.y + this.height < platform.y + 10 &&
+                            this.velocityY > 0
+                        ) {
+                            this.y = platform.y - this.height;
+                            this.velocityY = 0;
+                            this.isJumping = false;
+                            onGround = true;
+                        }
+                    });
+
+                    // Boundary checks
+                    if (this.x < 0) this.x = 0;
+                    if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                    if (this.y + this.height > canvas.height) {
                         this.y = canvas.height - this.height;
                         this.velocityY = 0;
                         this.isJumping = false;
                     }
-                    
-                    // Walls
-                    if (this.x < 0) this.x = 0;
-                    if (this.x > canvas.width - this.width) this.x = canvas.width - this.width;
+
+                    // Flame reduction
+                    this.flameSize = Math.max(0, this.flameSize - 0.1);
                 },
-                
-                draw() {
-                    // Draw stick figure
-                    ctx.strokeStyle = 'red';
+
+                draw(ctx) {
+                    // Stick figure drawing logic with flame
+                    ctx.strokeStyle = this.invincible ? 'cyan' : 'red';
                     ctx.lineWidth = 2;
-                    
+
                     // Head
                     ctx.beginPath();
                     ctx.arc(this.x + this.width/2, this.y, 10, 0, Math.PI * 2);
                     ctx.stroke();
-                    
+
                     // Body
                     ctx.beginPath();
                     ctx.moveTo(this.x + this.width/2, this.y + 10);
                     ctx.lineTo(this.x + this.width/2, this.y + 30);
                     ctx.stroke();
-                    
+
                     // Arms
                     ctx.beginPath();
                     ctx.moveTo(this.x + this.width/2 - 10, this.y + 20);
                     ctx.lineTo(this.x + this.width/2, this.y + 20);
                     ctx.lineTo(this.x + this.width/2 + 10, this.y + 20);
                     ctx.stroke();
-                    
+
                     // Legs
                     ctx.beginPath();
                     ctx.moveTo(this.x + this.width/2, this.y + 30);
@@ -174,132 +328,317 @@
                     ctx.moveTo(this.x + this.width/2, this.y + 30);
                     ctx.lineTo(this.x + this.width/2 + 8, this.y + 40);
                     ctx.stroke();
-                    
-                    // Flame on head
+
+                    // Flame with dynamic size
+                    const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
                     ctx.beginPath();
                     ctx.moveTo(this.x + this.width/2 - 5, this.y - 10);
-                    ctx.quadraticCurveTo(this.x + this.width/2, this.y - 25, this.x + this.width/2 + 5, this.y - 10);
-                    ctx.fillStyle = 'orange';
-                    ctx.fill();
-                    
-                    // Glow effect
-                    const radius = 80 * (gameState.flameSize / 100);
-                    const gradient = ctx.createRadialGradient(
-                        this.x + this.width/2, this.y - 15, 0,
-                        this.x + this.width/2, this.y - 15, radius
+                    ctx.quadraticCurveTo(
+                        this.x + this.width/2, 
+                        this.y - 10 - flameHeight * (this.flameSize / 100), 
+                        this.x + this.width/2 + 5, 
+                        this.y - 10
                     );
-                    gradient.addColorStop(0, 'rgba(255, 200, 100, 0.8)');
-                    gradient.addColorStop(1, 'rgba(255, 200, 100, 0)');
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(this.x + this.width/2, this.y - 15, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'orange';
                     ctx.fill();
                 }
             };
-            
-            // Game loop
-            function gameLoop(timestamp) {
-                const deltaTime = timestamp - lastTime;
-                lastTime = timestamp;
-                
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw background
-                ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Update and draw player
-                player.update();
-                player.draw();
-                
-                // UI
-                ctx.fillStyle = '#fff';
-                ctx.font = '20px Arial';
-                ctx.fillText('Use joystick to move, tap JUMP to jump', 20, 30);
-                
-                // Continue animation
-                animationId = requestAnimationFrame(gameLoop);
-            }
-            
-            // Joystick control
+
+            // Game Controls
+            const keys = {
+                left: false,
+                right: false,
+                up: false
+            };
+
+            // Touch Controls
             const joystickContainer = document.getElementById('joystickContainer');
             const joystick = document.getElementById('joystick');
             const jumpBtn = document.getElementById('jumpBtn');
-            
-            let joystickActive = false;
-            let joystickStartX = 0;
-            
-            joystickContainer.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = joystickContainer.getBoundingClientRect();
-                joystickStartX = touch.clientX - rect.left;
-                joystickActive = true;
-                
-                joystick.style.left = joystickStartX + 'px';
-            });
-            
-            joystickContainer.addEventListener('touchmove', (e) => {
-                if (!joystickActive) return;
-                e.preventDefault();
-                
-                const touch = e.touches[0];
-                const rect = joystickContainer.getBoundingClientRect();
-                const joystickX = touch.clientX - rect.left - joystickStartX;
-                
-                // Move the joystick (with limits)
-                const maxDistance = 35;
-                const limitedX = Math.max(-maxDistance, Math.min(maxDistance, joystickX));
-                
-                joystick.style.transform = `translate(calc(-50% + ${limitedX}px), -50%)`;
-                
-                // Update player controls
-                if (limitedX < -10) {
-                    keys.left = true;
-                    keys.right = false;
-                } else if (limitedX > 10) {
-                    keys.right = true;
+
+            function setupTouchControls() {
+                let joystickActive = false;
+                let joystickStartX = 0;
+
+                joystickContainer.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const rect = joystickContainer.getBoundingClientRect();
+                    joystickStartX = touch.clientX - rect.left;
+                    joystickActive = true;
+                    joystick.style.left = joystickStartX + 'px';
+                });
+
+                joystickContainer.addEventListener('touchmove', (e) => {
+                    if (!joystickActive) return;
+                    e.preventDefault();
+                    
+                    const touch = e.touches[0];
+                    const rect = joystickContainer.getBoundingClientRect();
+                    const joystickX = touch.clientX - rect.left - joystickStartX;
+                    
+                    const maxDistance = 35;
+                    const limitedX = Math.max(-maxDistance, Math.min(maxDistance, joystickX));
+                    
+                    joystick.style.transform = `translate(calc(-50% + ${limitedX}px), -50%)`;
+                    
+                    if (limitedX < -10) {
+                        keys.left = true;
+                        keys.right = false;
+                    } else if (limitedX > 10) {
+                        keys.right = true;
+                        keys.left = false;
+                    } else {
+                        keys.left = false;
+                        keys.right = false;
+                    }
+                });
+
+                joystickContainer.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    joystickActive = false;
                     keys.left = false;
-                } else {
-                    keys.left = false;
                     keys.right = false;
+                    joystick.style.transform = 'translate(-50%, -50%)';
+                    joystick.style.left = '50%';
+                });
+
+                jumpBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    keys.up = true;
+                });
+
+                jumpBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    keys.up = false;
+                });
+            }
+
+            // Keyboard Controls
+            function setupKeyboardControls() {
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft') keys.left = true;
+                    if (e.key === 'ArrowRight') keys.right = true;
+                    if (e.key === 'ArrowUp' || e.key === ' ') keys.up = true;
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    if (e.key === 'ArrowLeft') keys.left = false;
+                    if (e.key === 'ArrowRight') keys.right = false;
+                    if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
+                });
+            }
+
+            // Game Rendering Functions
+            function drawBackground(level) {
+                // Create gradient background based on level
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, level.background.split(',')[0].split('(')[1].trim());
+                gradient.addColorStop(1, level.background.split(',')[1].split(')')[0].trim());
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            function drawPlatforms(platforms) {
+                ctx.fillStyle = '#555';
+                platforms.forEach(platform => {
+                    ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                });
+            }
+
+            function drawObstacles(obstacles) {
+                ctx.fillStyle = '#8B4513'; // Brown color for obstacles
+                obstacles.forEach(obstacle => {
+                    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                });
+            }
+
+            function drawCollectibles(collectibles) {
+                collectibles.forEach(collectible => {
+                    if (collectible.type === 'flame') {
+                        ctx.fillStyle = 'orange';
+                        ctx.beginPath();
+                        ctx.arc(
+                            collectible.x + collectible.width/2, 
+                            collectible.y + collectible.height/2, 
+                            collectible.width/2, 
+                            0, 
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                    } else if (collectible.type === 'powerup') {
+                        ctx.fillStyle = 'cyan';
+                        ctx.beginPath();
+                        ctx.arc(
+                            collectible.x + collectible.width/2, 
+                            collectible.y + collectible.height/2, 
+                            collectible.width/2, 
+                            0, 
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                });
+            }
+
+            function drawUI() {
+                // Score
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.fillText(`Score: ${gameState.score}`, 20, 30);
+
+                // Lives
+                ctx.fillText(`Lives: ${gameState.lives}`, 20, 60);
+
+                // Level Name
+                ctx.textAlign = 'center';
+                ctx.fillText(
+                    levels[gameState.currentLevel].name, 
+                    canvas.width/2, 
+                    30
+                );
+                ctx.textAlign = 'left';
+
+                // Flame Meter
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.fillRect(canvas.width - 220, 20, 200, 20);
+                
+                const flameWidth = player.flameSize * 2;
+                ctx.fillStyle = `rgb(
+                    255, 
+                    ${Math.min(255, 100 + player.flameSize)}, 
+                    ${Math.min(255, 50 + player.flameSize / 2)}
+                )`;
+                ctx.fillRect(canvas.width - 220, 20, flameWidth, 20);
+            }
+
+            // Collision Detection
+            function checkCollectibleCollision() {
+                const currentLevel = levels[gameState.currentLevel];
+                currentLevel.collectibles = currentLevel.collectibles.filter(collectible => {
+                    if (
+                        player.x < collectible.x + collectible.width &&
+                        player.x + player.width > collectible.x &&
+                        player.y < collectible.y + collectible.height &&
+                        player.y + player.height > collectible.y
+                    ) {
+                        // Collect item
+                        if (collectible.type === 'flame') {
+                            gameState.updateScore(collectible.value);
+                            player.flameSize = Math.min(100, player.flameSize + 20);
+                        } else if (collectible.type === 'powerup') {
+                            // Apply power-up effect
+                            player.invincible = true;
+                            setTimeout(() => {
+                                player.invincible = false;
+                            }, 3000);
+                        }
+                        return false; // Remove collectible
+                    }
+                    return true;
+                });
+            }
+
+            // Game Loop
+            function gameLoop(timestamp) {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Current level
+                const currentLevel = levels[gameState.currentLevel];
+
+                // Draw background
+                drawBackground(currentLevel);
+
+                // Draw game elements
+                drawPlatforms(currentLevel.platforms);
+                drawObstacles(currentLevel.obstacles);
+                drawCollectibles(currentLevel.collectibles);
+
+                // Update and draw player
+                player.update(keys, currentLevel);
+                player.draw(ctx);
+
+                // Draw UI
+                drawUI();
+
+                // Check collectible collisions
+                checkCollectibleCollision();
+
+                // Game over conditions
+                if (player.flameSize <= 0 || gameState.lives <= 0) {
+                    endGame();
+                    return;
                 }
-            });
-            
-            joystickContainer.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                joystickActive = false;
-                keys.left = false;
-                keys.right = false;
-                joystick.style.transform = 'translate(-50%, -50%)';
-                joystick.style.left = '50%';
-            });
-            
-            jumpBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                keys.up = true;
-            });
-            
-            jumpBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                keys.up = false;
-            });
-            
-            // Handle keyboard controls for desktop testing
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft') keys.left = true;
-                if (e.key === 'ArrowRight') keys.right = true;
-                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = true;
-            });
-            
-            window.addEventListener('keyup', (e) => {
-                if (e.key === 'ArrowLeft') keys.left = false;
-                if (e.key === 'ArrowRight') keys.right = false;
-                if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
-            });
-            
-            // Handle window resize
+
+                // Level complete condition
+                if (currentLevel.collectibles.length === 0) {
+                    advanceLevel();
+                }
+
+                // Continue game loop
+                if (gameState.gameActive) {
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+
+            // Game Management Functions
+            function startGame() {
+                // Reset game state
+                gameState.score = 0;
+                gameState.lives = 3;
+                gameState.currentLevel = 0;
+                gameState.gameActive = true;
+
+                // Reset player
+                player.x = 100;
+                player.y = 350;
+                player.flameSize = 100;
+                player.invincible = false;
+
+                // Hide menu, show game
+                menuOverlay.style.display = 'none';
+                gameOverlay.style.display = 'none';
+
+                // Start game loop
+                requestAnimationFrame(gameLoop);
+            }
+
+            function endGame() {
+                gameState.gameActive = false;
+                gameState.saveHighScore();
+
+                // Show game over overlay
+                gameOverlay.style.display = 'flex';
+                document.getElementById('finalScore').textContent = `Score: ${gameState.score}`;
+            }
+
+            function advanceLevel() {
+                gameState.currentLevel++;
+
+                // Check if all levels completed
+                if (gameState.currentLevel >= levels.length) {
+                    endGame();
+                    return;
+                }
+
+                // Reset player position and flame
+                player.x = 100;
+                player.y = 350;
+                player.flameSize = 100;
+            }
+
+            // Event Listeners
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+
+            // Initial Setup
+            setupTouchControls();
+            setupKeyboardControls();
+            gameState.loadHighScores();
+
+            // Resize handling
             function handleResize() {
                 const container = document.body;
                 const containerRatio = container.clientWidth / container.clientHeight;
@@ -313,13 +652,9 @@
                     canvas.style.height = '100%';
                 }
             }
-            
+
             window.addEventListener('resize', handleResize);
             handleResize();
-            
-            // Start the game
-            lastTime = 0;
-            animationId = requestAnimationFrame(gameLoop);
         });
     </script>
 </body>
