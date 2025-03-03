@@ -260,6 +260,7 @@
             justify-content: space-between;
             padding: 0 30px;
             box-sizing: border-box;
+            z-index: 15;
         }
         
         #joystickContainer {
@@ -316,6 +317,7 @@
             border-radius: 5px;
             font-size: 12px;
             display: none;
+            z-index: 15;
         }
         
         #errorMessage {
@@ -365,7 +367,7 @@
         </div>
 
         <div id="gameOverlay">
-            <h1>Game Over</h1>
+            <h1 id="gameOverTitle">Game Over</h1>
             <p id="finalScore">Score: 0</p>
             <button id="restartButton">Restart</button>
         </div>
@@ -398,6 +400,15 @@
             return true; // Prevent default error handling
         };
         
+        // Debug mode 
+        const DEBUG_MODE = false;
+        
+        function log(message) {
+            if (DEBUG_MODE) {
+                console.log(message);
+            }
+        }
+        
         function showError(message) {
             const errorElement = document.getElementById('errorMessage');
             if (errorElement) {
@@ -412,128 +423,1129 @@
             }
         }
 
-        // Setup basic game screens
-        function startGame() {
-            console.log("startGame called");
-            try {
-                // Hide menu, show game
-                document.getElementById('menuOverlay').style.display = 'none';
-                document.getElementById('gameScreen').style.display = 'block';
-                document.getElementById('controls').style.display = 'flex';
-                
-                // Initialize game components
-                initGame();
-            } catch (error) {
-                showError("Error starting game: " + error.message);
-            }
-        }
-        
-        function showGameOver(score) {
-            document.getElementById('gameOverlay').style.display = 'flex';
-            document.getElementById('finalScore').textContent = `Score: ${score}`;
-        }
-        
-        function restartGame() {
-            document.getElementById('gameOverlay').style.display = 'none';
-            startGame();
-        }
-        
-        // Initialize when document is fully loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM loaded");
+        // Game state and assets
+        const gameState = {
+            score: 0,
+            lives: 3,
+            currentLevel: 0,
+            gameActive: false,
+            highScores: [],
+            keys: {
+                left: false,
+                right: false,
+                up: false
+            },
             
-            // Attach button event listeners
-            const startButton = document.getElementById('startButton');
-            if (startButton) {
-                startButton.addEventListener('click', function() {
-                    console.log("Start button clicked");
-                    startGame();
-                });
-            } else {
-                showError("Start button not found!");
-            }
+            updateScore(points) {
+                this.score += points;
+                this.displayScore();
+            },
             
-            const restartButton = document.getElementById('restartButton');
-            if (restartButton) {
-                restartButton.addEventListener('click', restartGame);
-            }
-            
-            // Setup canvas
-            setupCanvas();
-            
-            // Load high scores
-            loadHighScores();
-            
-            // Backup: Start automatically after 10 seconds if nothing happens
-            setTimeout(function() {
-                if (document.getElementById('menuOverlay').style.display !== 'none') {
-                    console.log("Auto-starting game");
-                    startGame();
+            displayScore() {
+                // Update score display on canvas
+                if (this.gameActive && ctx) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '20px Arial';
+                    ctx.fillText(`Score: ${this.score}`, 20, 30);
                 }
-            }, 10000);
-        });
+            },
+            
+            saveHighScore() {
+                const newScore = {
+                    score: this.score,
+                    level: this.currentLevel + 1,
+                    date: new Date().toISOString()
+                };
+                
+                this.highScores.push(newScore);
+                this.highScores.sort((a, b) => b.score - a.score);
+                this.highScores = this.highScores.slice(0, 5); // Keep top 5 scores
+                
+                // Save to localStorage
+                localStorage.setItem('flameWalkerScores', JSON.stringify(this.highScores));
+                displayHighScores();
+            }
+        };
         
-        // Canvas setup
+        const player = {
+            x: 100,
+            y: 350,
+            width: 20,
+            height: 40,
+            velocityX: 0,
+            velocityY: 0,
+            speed: 5,
+            jumpForce: 12,
+            isJumping: false,
+            coyoteTime: 0,
+            flameSize: 100,
+            invincible: false,
+            
+            update() {
+                // Apply gravity
+                this.velocityY += 0.5;
+                
+                // Apply movement from input
+                if (gameState.keys.left) this.velocityX = -this.speed;
+                else if (gameState.keys.right) this.velocityX = this.speed;
+                else this.velocityX = 0;
+                
+                // Apply jump
+                if (gameState.keys.up && (!this.isJumping || this.coyoteTime > 0)) {
+                    this.velocityY = -this.jumpForce;
+                    this.isJumping = true;
+                    this.coyoteTime = 0;
+                }
+                
+                // Update position
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+                
+                // Check level boundaries
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                
+                // Check for falling off the bottom
+                if (this.y > canvas.height) {
+                    this.y = canvas.height - this.height;
+                    this.velocityY = 0;
+                    gameState.lives--;
+                    
+                    if (gameState.lives <= 0) {
+                        endGame();
+                    } else {
+                        // Reset player position
+                        this.x = 100;
+                        this.y = 350;
+                    }
+                }
+                
+                // Reduce flame size over time
+                this.flameSize = Math.max(0, this.flameSize - 0.1);
+                
+                // Check if flame is out
+                if (this.flameSize <= 0) {
+                    endGame();
+                }
+                
+                // Decrease coyote time if not on ground
+                if (this.coyoteTime > 0) {
+                    this.coyoteTime--;
+                }
+            },
+            
+            draw(ctx) {
+                ctx.save();
+                
+                // Create center point for the character
+                const centerX = this.x + this.width/2;
+                
+                // Create shadow for 3D effect
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 5;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+                
+                // Create gradient for better 3D effect
+                const gradient = ctx.createLinearGradient(
+                    centerX - 15, this.y, centerX + 15, this.y + 40
+                );
+                
+                if (this.invincible) {
+                    gradient.addColorStop(0, 'rgb(0, 255, 255)');
+                    gradient.addColorStop(1, 'rgb(0, 200, 200)');
+                } else {
+                    gradient.addColorStop(0, 'rgb(255, 50, 50)');
+                    gradient.addColorStop(1, 'rgb(200, 0, 0)');
+                }
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 3;
+                
+                // Animation offsets for walking
+                let legOffsetL = 0;
+                let legOffsetR = 0;
+                let armOffsetL = 0;
+                let armOffsetR = 0;
+                
+                // Only animate if moving horizontally
+                if (Math.abs(this.velocityX) > 0.1) {
+                    const walkCycle = (Date.now() % 1000) / 1000;
+                    legOffsetL = Math.sin(walkCycle * Math.PI * 2) * 5;
+                    legOffsetR = -Math.sin(walkCycle * Math.PI * 2) * 5;
+                    armOffsetL = -Math.sin(walkCycle * Math.PI * 2) * 3;
+                    armOffsetR = Math.sin(walkCycle * Math.PI * 2) * 3;
+                }
+                
+                // Draw head with gradient
+                const headGradient = ctx.createRadialGradient(
+                    centerX + 2, this.y - 2, 1, 
+                    centerX, this.y, 10
+                );
+                
+                if (this.invincible) {
+                    headGradient.addColorStop(0, 'white');
+                    headGradient.addColorStop(0.7, 'cyan');
+                    headGradient.addColorStop(1, 'blue');
+                } else {
+                    headGradient.addColorStop(0, 'white');
+                    headGradient.addColorStop(0.7, 'red');
+                    headGradient.addColorStop(1, 'darkred');
+                }
+                
+                ctx.beginPath();
+                ctx.arc(centerX, this.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = headGradient;
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw eyes
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(centerX - 3, this.y - 2, 2, 0, Math.PI * 2);
+                ctx.arc(centerX + 3, this.y - 2, 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                
+                // Eyes look in direction of movement
+                let eyeOffsetX = 0;
+                if (this.velocityX > 0.1) eyeOffsetX = 0.5;
+                if (this.velocityX < -0.1) eyeOffsetX = -0.5;
+                
+                ctx.arc(centerX - 3 + eyeOffsetX, this.y - 2, 1, 0, Math.PI * 2);
+                ctx.arc(centerX + 3 + eyeOffsetX, this.y - 2, 1, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Body
+                ctx.beginPath();
+                ctx.moveTo(centerX, this.y + 10);
+                ctx.lineTo(centerX, this.y + 30);
+                ctx.stroke();
+                
+                // Arms with animation
+                ctx.beginPath();
+                ctx.moveTo(centerX, this.y + 15);
+                ctx.lineTo(centerX - 10, this.y + 20 + armOffsetL);
+                ctx.moveTo(centerX, this.y + 15);
+                ctx.lineTo(centerX + 10, this.y + 20 + armOffsetR);
+                ctx.stroke();
+                
+                // Legs with animation - jumping or walking
+                if (this.isJumping) {
+                    // Jumping pose
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, this.y + 30);
+                    ctx.lineTo(centerX - 10, this.y + 35);
+                    ctx.moveTo(centerX, this.y + 30);
+                    ctx.lineTo(centerX + 10, this.y + 35);
+                    ctx.stroke();
+                } else {
+                    // Walking animation
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, this.y + 30);
+                    ctx.lineTo(centerX - 8, this.y + 40 + legOffsetL);
+                    ctx.moveTo(centerX, this.y + 30);
+                    ctx.lineTo(centerX + 8, this.y + 40 + legOffsetR);
+                    ctx.stroke();
+                }
+                
+                // Advanced flame with dynamic size and multi-layer
+                const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
+                const flameScale = this.flameSize / 100;
+                
+                // Outer flame glow
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(255, 100, 0, 0.7)';
+                
+                // Base flame
+                const flameGradient = ctx.createRadialGradient(
+                    centerX, this.y - 15, 1,
+                    centerX, this.y - 15, flameHeight * flameScale
+                );
+                flameGradient.addColorStop(0, 'rgba(255, 255, 200, 0.9)');
+                flameGradient.addColorStop(0.4, 'rgba(255, 150, 0, 0.8)');
+                flameGradient.addColorStop(0.7, 'rgba(255, 50, 0, 0.6)');
+                flameGradient.addColorStop(1, 'rgba(200, 0, 0, 0)');
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX - 5, this.y - 10);
+                ctx.quadraticCurveTo(
+                    centerX, 
+                    this.y - 10 - flameHeight * flameScale, 
+                    centerX + 5, 
+                    this.y - 10
+                );
+                ctx.fillStyle = flameGradient;
+                ctx.fill();
+                
+                // Inner flame (brighter)
+                const innerFlameHeight = flameHeight * 0.7;
+                const innerFlameGradient = ctx.createRadialGradient(
+                    centerX, this.y - 13, 1,
+                    centerX, this.y - 13, innerFlameHeight * flameScale
+                );
+                innerFlameGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                innerFlameGradient.addColorStop(0.5, 'rgba(255, 250, 150, 0.8)');
+                innerFlameGradient.addColorStop(1, 'rgba(255, 200, 0, 0)');
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX - 3, this.y - 10);
+                ctx.quadraticCurveTo(
+                    centerX, 
+                    this.y - 10 - innerFlameHeight * flameScale, 
+                    centerX + 3, 
+                    this.y - 10
+                );
+                ctx.fillStyle = innerFlameGradient;
+                ctx.fill();
+                
+                // Flame particles for effect
+                if (this.flameSize > 30) {
+                    const particleCount = Math.floor(this.flameSize / 20);
+                    for (let i = 0; i < particleCount; i++) {
+                        const t = Date.now() / 1000 + i;
+                        const x = centerX + Math.sin(t * 5 + i) * 3;
+                        const y = this.y - 15 - (Math.sin(t * 3) + 1) * 5 * flameScale;
+                        const size = 1 + Math.sin(t * 2) * 1;
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255, ${150 + Math.random() * 100}, 0, ${0.7 * flameScale})`;
+                        ctx.fill();
+                    }
+                }
+                
+                ctx.restore();
+            },
+            
+            checkPlatformCollisions(platforms) {
+                let onGround = false;
+                
+                platforms.forEach(platform => {
+                    if (
+                        this.x + this.width > platform.x &&
+                        this.x < platform.x + platform.width &&
+                        this.y + this.height > platform.y &&
+                        this.y + this.height < platform.y + 10 && // Check only the top edge
+                        this.velocityY > 0
+                    ) {
+                        this.y = platform.y - this.height;
+                        this.velocityY = 0;
+                        this.isJumping = false;
+                        onGround = true;
+                        this.coyoteTime = 5; // Allow jump slightly after leaving platform
+                    }
+                });
+                
+                return onGround;
+            },
+            
+            checkCollectibleCollisions(collectibles) {
+                let collectedSomething = false;
+                
+                for (let i = collectibles.length - 1; i >= 0; i--) {
+                    const collectible = collectibles[i];
+                    
+                    if (
+                        this.x < collectible.x + collectible.width &&
+                        this.x + this.width > collectible.x &&
+                        this.y < collectible.y + collectible.height &&
+                        this.y + this.height > collectible.y
+                    ) {
+                        // Handle collectible effect
+                        if (collectible.type === 'flame') {
+                            gameState.updateScore(collectible.value);
+                            this.flameSize = Math.min(100, this.flameSize + 20);
+                            collectedSomething = true;
+                        } else if (collectible.type === 'powerup') {
+                            this.invincible = true;
+                            setTimeout(() => {
+                                this.invincible = false;
+                            }, 3000);
+                            collectedSomething = true;
+                        }
+                        
+                        // Remove collectible
+                        collectibles.splice(i, 1);
+                    }
+                }
+                
+                return collectedSomething;
+            },
+            
+            checkObstacleCollisions(obstacles) {
+                for (const obstacle of obstacles) {
+                    if (
+                        this.x < obstacle.x + obstacle.width &&
+                        this.x + this.width > obstacle.x &&
+                        this.y < obstacle.y + obstacle.height &&
+                        this.y + this.height > obstacle.y
+                    ) {
+                        if (!this.invincible) {
+                            // Handle collision with obstacle
+                            this.flameSize = Math.max(0, this.flameSize - 20);
+                            this.invincible = true;
+                            
+                            // Temporary invincibility
+                            setTimeout(() => {
+                                this.invincible = false;
+                            }, 1000);
+                            
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            },
+            
+            reset() {
+                this.x = 100;
+                this.y = 350;
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.isJumping = false;
+                this.flameSize = 100;
+                this.invincible = false;
+            }
+        };
+        
+        // Level definitions
+        const levels = [
+            {
+                name: "Forest Path",
+                backgroundColor1: "#87CEEB",  // Sky blue
+                backgroundColor2: "#228B22",  // Forest green
+                platforms: [
+                    { x: 0, y: 400, width: 200, height: 20 },
+                    { x: 250, y: 350, width: 150, height: 20 },
+                    { x: 450, y: 300, width: 150, height: 20 }
+                ],
+                obstacles: [
+                    { x: 300, y: 380, width: 50, height: 20, type: 'log' }
+                ],
+                collectibles: [
+                    { x: 400, y: 270, width: 20, height: 20, type: 'flame', value: 10 }
+                ]
+            },
+            {
+                name: "Mountain Pass",
+                backgroundColor1: "#B0E0E6",  // Powder blue
+                backgroundColor2: "#A0522D",  // Sienna
+                platforms: [
+                    { x: 0, y: 400, width: 150, height: 20 },
+                    { x: 200, y: 350, width: 150, height: 20 },
+                    { x: 400, y: 300, width: 150, height: 20 },
+                    { x: 600, y: 250, width: 150, height: 20 }
+                ],
+                obstacles: [
+                    { x: 250, y: 380, width: 70, height: 20, type: 'boulder' }
+                ],
+                collectibles: [
+                    { x: 300, y: 270, width: 20, height: 20, type: 'flame', value: 15 },
+                    { x: 500, y: 220, width: 20, height: 20, type: 'flame', value: 15 }
+                ]
+            },
+            {
+                name: "Desert Canyon",
+                backgroundColor1: "#87CEFA",  // Light sky blue
+                backgroundColor2: "#DAA520",  // Goldenrod
+                platforms: [
+                    { x: 0, y: 400, width: 120, height: 20 },
+                    { x: 180, y: 370, width: 120, height: 20 },
+                    { x: 350, y: 340, width: 120, height: 20 },
+                    { x: 520, y: 310, width: 120, height: 20 },
+                    { x: 690, y: 280, width: 120, height: 20 }
+                ],
+                obstacles: [
+                    { x: 150, y: 380, width: 20, height: 40, type: 'cactus' },
+                    { x: 320, y: 350, width: 20, height: 40, type: 'cactus' },
+                    { x: 490, y: 320, width: 20, height: 40, type: 'cactus' },
+                    { x: 660, y: 290, width: 20, height: 40, type: 'cactus' }
+                ],
+                collectibles: [
+                    { x: 220, y: 340, width: 20, height: 20, type: 'flame', value: 20 },
+                    { x: 390, y: 310, width: 20, height: 20, type: 'flame', value: 20 },
+                    { x: 560, y: 280, width: 20, height: 20, type: 'flame', value: 20 }
+                ]
+            },
+            {
+                name: "Ice Cavern",
+                backgroundColor1: "#4682B4",  // Steel blue
+                backgroundColor2: "#F0F8FF",  // Alice blue
+                platforms: [
+                    { x: 0, y: 400, width: 160, height: 20 },
+                    { x: 200, y: 330, width: 160, height: 20 },
+                    { x: 400, y: 260, width: 160, height: 20 },
+                    { x: 260, y: 190, width: 160, height: 20 },
+                    { x: 120, y: 120, width: 160, height: 20 }
+                ],
+                obstacles: [
+                    { x: 170, y: 380, width: 20, height: 80, type: 'icicle' },
+                    { x: 370, y: 240, width: 20, height: 80, type: 'icicle' },
+                    { x: 230, y: 100, width: 20, height: 80, type: 'icicle' }
+                ],
+                collectibles: [
+                    { x: 280, y: 300, width: 20, height: 20, type: 'flame', value: 20 },
+                    { x: 460, y: 230, width: 20, height: 20, type: 'flame', value: 20 },
+                    { x: 180, y: 90, width: 20, height: 20, type: 'flame', value: 25 }
+                ]
+            },
+            {
+                name: "Volcanic Ridge",
+                backgroundColor1: "#FF4500",  // OrangeRed
+                backgroundColor2: "#8B0000",  // DarkRed
+                platforms: [
+                    { x: 0, y: 400, width: 140, height: 20 },
+                    { x: 190, y: 400, width: 140, height: 20 },
+                    { x: 380, y: 400, width: 140, height: 20 },
+                    { x: 570, y: 400, width: 140, height: 20 },
+                    { x: 95, y: 320, width: 140, height: 20 },
+                    { x: 285, y: 320, width: 140, height: 20 },
+                    { x: 475, y: 320, width: 140, height: 20 },
+                    { x: 190, y: 240, width: 140, height: 20 },
+                    { x: 380, y: 240, width: 140, height: 20 },
+                    { x: 285, y: 160, width: 140, height: 20 }
+                ],
+                obstacles: [
+                    { x: 150, y: 380, width: 30, height: 40, type: 'lava' },
+                    { x: 340, y: 380, width: 30, height: 40, type: 'lava' },
+                    { x: 530, y: 380, width: 30, height: 40, type: 'lava' },
+                    { x: 245, y: 300, width: 30, height: 40, type: 'lava' },
+                    { x: 435, y: 300, width: 30, height: 40, type: 'lava' },
+                    { x: 340, y: 220, width: 30, height: 40, type: 'lava' }
+                ],
+                collectibles: [
+                    { x: 150, y: 290, width: 20, height: 20, type: 'flame', value: 25 },
+                    { x: 340, y: 290, width: 20, height: 20, type: 'flame', value: 25 },
+                    { x: 245, y: 210, width: 20, height: 20, type: 'flame', value: 25 },
+                    { x: 435, y: 210, width: 20, height: 20, type: 'flame', value: 25 },
+                    { x: 340, y: 130, width: 20, height: 20, type: 'flame', value: 35 }
+                ]
+            }
+        ];
+        
+        // Global canvas and context variables
+        let canvas, ctx;
+        let gameLoopId = null;
+        
+        // Setup canvas
         function setupCanvas() {
             try {
-                const canvas = document.getElementById('gameCanvas');
+                canvas = document.getElementById('gameCanvas');
                 if (!canvas) {
                     throw new Error("Canvas element not found");
                 }
                 
+                ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    throw new Error("Failed to get canvas context");
+                }
+                
                 canvas.width = 800;
                 canvas.height = 450;
-                console.log("Canvas initialized");
+                log("Canvas initialized: " + canvas.width + "x" + canvas.height);
             } catch (error) {
                 showError("Canvas setup error: " + error.message);
             }
         }
         
-        // High scores management
-        function loadHighScores() {
+        // Game rendering functions
+        function drawBackground(level) {
+            if (!level) return;
+            
             try {
-                const savedScores = localStorage.getItem('flameWalkerScores');
-                const highScoresList = document.getElementById('highScoresList');
+                // Create gradient background
+                const startColor = level.backgroundColor1;
+                const endColor = level.backgroundColor2;
                 
-                if (savedScores && highScoresList) {
-                    const scores = JSON.parse(savedScores);
-                    
-                    highScoresList.innerHTML = scores.map((score, index) => 
-                        `<div>${index + 1}. ${score.score} - Level ${score.level}</div>`
-                    ).join('');
-                } else {
-                    document.getElementById('highScoresList').innerHTML = 
-                        "<div>No scores yet. Be the first!</div>";
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, startColor);
+                gradient.addColorStop(1, endColor);
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Add environmental effects based on level type
+                if (level.name.includes("Mountain") || level.name.includes("Highland")) {
+                    drawMountainBackground();
+                } else if (level.name.includes("Desert")) {
+                    drawDesertBackground();
+                } else if (level.name.includes("Forest")) {
+                    drawForestBackground();
+                } else if (level.name.includes("Ice")) {
+                    drawIceBackground();
+                } else if (level.name.includes("Volcano")) {
+                    drawVolcanicBackground();
                 }
             } catch (error) {
-                showError("Error loading high scores: " + error.message);
+                console.error("Error drawing background:", error);
+                // Fallback to solid color
+                ctx.fillStyle = "#333";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
         }
         
-        // Game initialization
-        function initGame() {
-            try {
-                const canvas = document.getElementById('gameCanvas');
-                const ctx = canvas.getContext('2d');
+        // Background effect functions
+        function drawMountainBackground() {
+            // Draw distant mountains with parallax effect
+            ctx.fillStyle = 'rgba(60, 60, 80, 0.5)';
+            
+            // Far mountains
+            ctx.beginPath();
+            ctx.moveTo(0, 300);
+            ctx.lineTo(100, 250);
+            ctx.lineTo(200, 290);
+            ctx.lineTo(350, 200);
+            ctx.lineTo(450, 250);
+            ctx.lineTo(550, 230);
+            ctx.lineTo(650, 280);
+            ctx.lineTo(800, 260);
+            ctx.lineTo(800, 300);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Closer mountains
+            ctx.fillStyle = 'rgba(80, 80, 100, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(0, 320);
+            ctx.lineTo(50, 290);
+            ctx.lineTo(150, 320);
+            ctx.lineTo(250, 270);
+            ctx.lineTo(350, 310);
+            ctx.lineTo(450, 280);
+            ctx.lineTo(600, 320);
+            ctx.lineTo(700, 290);
+            ctx.lineTo(800, 330);
+            ctx.lineTo(800, 350);
+            ctx.lineTo(0, 350);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function drawDesertBackground() {
+            // Draw distant sand dunes
+            const time = Date.now() / 10000;
+            
+            // Distant dunes
+            ctx.fillStyle = 'rgba(210, 180, 140, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(0, 320);
+            
+            for (let x = 0; x <= canvas.width; x += 50) {
+                const y = 320 + Math.sin((x / 100) + time) * 20;
+                ctx.lineTo(x, y);
+            }
+            
+            ctx.lineTo(canvas.width, 350);
+            ctx.lineTo(0, 350);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw some cacti silhouettes
+            ctx.fillStyle = 'rgba(30, 100, 30, 0.2)';
+            for (let i = 0; i < 5; i++) {
+                const x = 100 + i * 160;
+                const y = 320;
+                const height = 20 + i * 5;
                 
-                // Show a message that we've started the game correctly
-                ctx.fillStyle = 'black';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.beginPath();
+                ctx.rect(x, y - height, 5, height);
+                if (i % 2 === 0) {
+                    ctx.rect(x - 10, y - height + 10, 10, 5);
+                    ctx.rect(x + 5, y - height + 15, 8, 5);
+                } else {
+                    ctx.rect(x + 5, y - height + 5, 12, 5);
+                }
+                ctx.fill();
+            }
+        }
+        
+        function drawForestBackground() {
+            // Draw distant trees
+            ctx.fillStyle = 'rgba(30, 80, 30, 0.3)';
+            
+            for (let i = 0; i < 20; i++) {
+                const x = i * 40;
+                const y = 320;
+                const height = 30 + (i % 3) * 10;
                 
+                // Tree trunk
+                ctx.fillRect(x + 18, y - height + 20, 4, height - 20);
+                
+                // Tree top
+                ctx.beginPath();
+                ctx.moveTo(x + 10, y - height + 20);
+                ctx.lineTo(x + 20, y - height);
+                ctx.lineTo(x + 30, y - height + 20);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.moveTo(x + 8, y - height + 30);
+                ctx.lineTo(x + 20, y - height + 10);
+                ctx.lineTo(x + 32, y - height + 30);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        
+        function drawIceBackground() {
+            const time = Date.now() / 5000;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            
+            // Snowflakes
+            for (let i = 0; i < 50; i++) {
+                const x = ((i * 30) + time * 10) % canvas.width;
+                const y = ((i * 20) + time * 20) % canvas.height;
+                const size = 1 + Math.random() * 2;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Ice crystals
+            ctx.fillStyle = 'rgba(200, 240, 255, 0.3)';
+            for (let i = 0; i < 6; i++) {
+                const x = 100 + i * 120;
+                const y = 150 + (i % 3) * 30;
+                const size = 20 + (i % 3) * 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y - size/2);
+                ctx.lineTo(x + size/4, y);
+                ctx.lineTo(x, y + size/2);
+                ctx.lineTo(x - size/4, y);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        
+        function drawVolcanicBackground() {
+            // Draw volcano silhouette
+            ctx.fillStyle = 'rgba(80, 30, 30, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(0, 350);
+            ctx.lineTo(250, 350);
+            ctx.lineTo(400, 150);
+            ctx.lineTo(550, 350);
+            ctx.lineTo(800, 350);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Lava glow
+            const gradient = ctx.createRadialGradient(400, 150, 10, 400, 150, 100);
+            gradient.addColorStop(0, 'rgba(255, 200, 0, 0.3)');
+            gradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.2)');
+            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(400, 150, 100, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw occasional embers
+            if (Math.random() < 0.05) {
+                const emberCount = 5 + Math.floor(Math.random() * 5);
+                
+                ctx.fillStyle = 'rgba(255, 200, 0, 0.7)';
+                for (let i = 0; i < emberCount; i++) {
+                    const x = 380 + Math.random() * 40;
+                    const y = 145 + Math.random() * 10;
+                    const size = 1 + Math.random() * 2;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function drawPlatforms(platforms) {
+            if (!platforms || !Array.isArray(platforms)) return;
+            
+            platforms.forEach(platform => {
+                // Create platform gradient for 3D effect
+                const gradient = ctx.createLinearGradient(
+                    platform.x, platform.y, 
+                    platform.x, platform.y + platform.height
+                );
+                gradient.addColorStop(0, '#777');
+                gradient.addColorStop(0.5, '#555');
+                gradient.addColorStop(1, '#333');
+                
+                ctx.fillStyle = gradient;
+                
+                // Draw with shadow
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 5;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 4;
+                
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Reset shadow
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+                
+                // Add highlight on top
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(platform.x, platform.y, platform.width, 2);
+                
+                // Add texture detail
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                
+                const patternCount = Math.floor(platform.width / 15);
+                for (let i = 0; i < patternCount; i++) {
+                    if (i % 2 === 0) {
+                        ctx.fillRect(
+                            platform.x + i * 15 + 2, 
+                            platform.y + 5, 
+                            10, 
+                            platform.height - 8
+                        );
+                    }
+                }
+            });
+        }
+        
+        function drawObstacles(obstacles) {
+            if (!obstacles || !Array.isArray(obstacles)) return;
+            
+            obstacles.forEach(obstacle => {
+                // Choose color based on obstacle type
+                switch(obstacle.type) {
+                    case 'log':
+                        ctx.fillStyle = '#8B4513'; // Brown
+                        break;
+                    case 'boulder':
+                        ctx.fillStyle = '#A9A9A9'; // DarkGray
+                        break;
+                    case 'cactus':
+                        ctx.fillStyle = '#2E8B57'; // SeaGreen
+                        break;
+                    case 'icicle':
+                        ctx.fillStyle = '#E0FFFF'; // LightCyan
+                        break;
+                    case 'lava':
+                        ctx.fillStyle = '#FF4500'; // OrangeRed
+                        break;
+                    default:
+                        ctx.fillStyle = '#8B4513'; // Default brown
+                }
+                
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                
+                // Add special effects for certain obstacles
+                if (obstacle.type === 'lava') {
+                    // Add flickering effect
+                    const flickerHeight = 5 + Math.sin(Date.now() / 100) * 3;
+                    ctx.beginPath();
+                    ctx.moveTo(obstacle.x, obstacle.y);
+                    ctx.lineTo(obstacle.x + obstacle.width/2, obstacle.y - flickerHeight);
+                    ctx.lineTo(obstacle.x + obstacle.width, obstacle.y);
+                    ctx.fillStyle = '#FFA500'; // Orange
+                    ctx.fill();
+                }
+                
+                if (obstacle.type === 'icicle') {
+                    // Add sparkle effect
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.beginPath();
+                    ctx.arc(
+                        obstacle.x + obstacle.width/2, 
+                        obstacle.y + obstacle.height/3, 
+                        2, 
+                        0, 
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+            });
+        }
+        
+        function drawCollectibles(collectibles) {
+            if (!collectibles || !Array.isArray(collectibles)) return;
+            
+            collectibles.forEach(collectible => {
+                if (collectible.type === 'flame') {
+                    // Draw flame
+                    const centerX = collectible.x + collectible.width/2;
+                    const centerY = collectible.y + collectible.height/2;
+                    
+                    // Glow effect
+                    ctx.shadowColor = 'rgba(255, 100, 0, 0.8)';
+                    ctx.shadowBlur = 10;
+                    
+                    // Create flame gradient
+                    const gradient = ctx.createRadialGradient(
+                        centerX, centerY, 1,
+                        centerX, centerY, collectible.width/2
+                    );
+                    gradient.addColorStop(0, 'rgba(255, 255, 200, 1)');
+                    gradient.addColorStop(0.5, 'rgba(255, 150, 0, 0.8)');
+                    gradient.addColorStop(1, 'rgba(255, 50, 0, 0.6)');
+                    
+                    // Draw the flame
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, collectible.width/2, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Reset shadow
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    
+                    // Add flicker animation
+                    const flickerTime = Date.now() % 1000 / 1000;
+                    const flickerSize = collectible.width/4 + Math.sin(flickerTime * Math.PI * 2) * 2;
+                    
+                    // Inner flame
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, flickerSize, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 255, 150, 0.9)';
+                    ctx.fill();
+                } else if (collectible.type === 'powerup') {
+                    // Draw powerup
+                    const centerX = collectible.x + collectible.width/2;
+                    const centerY = collectible.y + collectible.height/2;
+                    
+                    // Glow effect
+                    ctx.shadowColor = 'rgba(0, 100, 255, 0.8)';
+                    ctx.shadowBlur = 10;
+                    
+                    // Create gradient
+                    const gradient = ctx.createRadialGradient(
+                        centerX, centerY, 1,
+                        centerX, centerY, collectible.width/2
+                    );
+                    gradient.addColorStop(0, 'rgba(200, 255, 255, 1)');
+                    gradient.addColorStop(0.5, 'rgba(0, 200, 255, 0.8)');
+                    gradient.addColorStop(1, 'rgba(0, 50, 255, 0.6)');
+                    
+                    // Draw the powerup
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, collectible.width/2, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Reset shadow
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                }
+            });
+        }
+        
+        function drawUI() {
+            // Draw score
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${gameState.score}`, 20, 30);
+            
+            // Draw lives
+            ctx.fillText(`Lives: ${gameState.lives}`, 20, 60);
+            
+            // Draw flame meter
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(canvas.width - 220, 20, 200, 20);
+            
+            const flameWidth = player.flameSize * 2;
+            ctx.fillStyle = `rgb(
+                255, 
+                ${Math.min(255, 100 + player.flameSize)}, 
+                ${Math.min(255, 50 + player.flameSize / 2)}
+            )`;
+            ctx.fillRect(canvas.width - 220, 20, flameWidth, 20);
+            
+            // Draw level name
+            ctx.textAlign = 'center';
+            const level = levels[gameState.currentLevel];
+            if (level) {
                 ctx.fillStyle = 'white';
-                ctx.font = '30px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Game Started Successfully!', canvas.width/2, canvas.height/2 - 30);
-                ctx.fillText('Use arrow keys to move and jump', canvas.width/2, canvas.height/2 + 30);
+                ctx.fillText(level.name, canvas.width/2, 30);
                 
-                // Show level information
-                showLevelMessage("Level 1: Forest Path");
+                // Show remaining collectibles
+                const remainingItems = level.collectibles.length;
+                ctx.fillText(`Flames: ${remainingItems}`, canvas.width/2, 60);
+            }
+            ctx.textAlign = 'left';
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameState.gameActive) return;
+            
+            try {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // In a real implementation, we would start the game loop here
+                // Get current level
+                const currentLevel = levels[gameState.currentLevel];
+                if (!currentLevel) {
+                    throw new Error("Level not found: " + gameState.currentLevel);
+                }
                 
-                console.log("Game initialized successfully");
+                // Draw background
+                drawBackground(currentLevel);
+                
+                // Draw game elements
+                drawPlatforms(currentLevel.platforms);
+                drawObstacles(currentLevel.obstacles);
+                drawCollectibles(currentLevel.collectibles);
+                
+                // Update player
+                player.update();
+                
+                // Check collisions
+                player.checkPlatformCollisions(currentLevel.platforms);
+                player.checkObstacleCollisions(currentLevel.obstacles);
+                
+                if (player.checkCollectibleCollisions(currentLevel.collectibles)) {
+                    // Check if level is complete
+                    if (currentLevel.collectibles.length === 0) {
+                        advanceLevel();
+                    }
+                }
+                
+                // Draw player
+                player.draw(ctx);
+                
+                // Draw UI
+                drawUI();
+                
+                // Continue loop
+                gameLoopId = requestAnimationFrame(gameLoop);
             } catch (error) {
-                showError("Game initialization error: " + error.message);
+                showError("Game loop error: " + error.message);
+                console.error("Game loop error:", error);
+            }
+        }
+        
+        // Game management functions
+        function startGame() {
+            log("Starting game");
+            try {
+                // Reset game state
+                gameState.score = 0;
+                gameState.lives = 3;
+                gameState.currentLevel = 0;
+                gameState.gameActive = true;
+                
+                // Reset player
+                player.reset();
+                
+                // Reset level collectibles
+                levels.forEach(level => {
+                    if (level.originalCollectibles) {
+                        level.collectibles = JSON.parse(JSON.stringify(level.originalCollectibles));
+                    } else {
+                        level.originalCollectibles = JSON.parse(JSON.stringify(level.collectibles));
+                    }
+                });
+                
+                // Hide menu, show game screen
+                document.getElementById('menuOverlay').style.display = 'none';
+                document.getElementById('gameScreen').style.display = 'block';
+                document.getElementById('controls').style.display = 'flex';
+                
+                // Show instructions
+                const instructionsEl = document.getElementById('instructions');
+                if (instructionsEl) {
+                    instructionsEl.style.display = 'block';
+                    setTimeout(() => {
+                        instructionsEl.style.display = 'none';
+                    }, 5000);
+                }
+                
+                // Show level announcement
+                showLevelMessage(`Level 1: ${levels[0].name}`);
+                
+                // Start game loop
+                if (gameLoopId) {
+                    cancelAnimationFrame(gameLoopId);
+                }
+                
+                gameLoopId = requestAnimationFrame(gameLoop);
+                
+                log("Game started successfully");
+            } catch (error) {
+                showError("Error starting game: " + error.message);
+                console.error("Start game error:", error);
+            }
+        }
+        
+        function endGame() {
+            try {
+                // Stop game loop
+                if (gameLoopId) {
+                    cancelAnimationFrame(gameLoopId);
+                    gameLoopId = null;
+                }
+                
+                gameState.gameActive = false;
+                
+                // Save high score
+                gameState.saveHighScore();
+                
+                // Show game over screen
+                document.getElementById('gameOverlay').style.display = 'flex';
+                
+                // Determine if player won or lost
+                if (gameState.currentLevel >= levels.length) {
+                    document.getElementById('gameOverTitle').textContent = "You Won!";
+                    document.getElementById('finalScore').textContent = 
+                        `Final Score: ${gameState.score}`;
+                } else {
+                    document.getElementById('gameOverTitle').textContent = "Game Over";
+                    document.getElementById('finalScore').textContent = 
+                        `Score: ${gameState.score}`;
+                }
+                
+                // Reset collectibles for next game
+                levels.forEach(level => {
+                    if (level.originalCollectibles) {
+                        level.collectibles = JSON.parse(JSON.stringify(level.originalCollectibles));
+                    }
+                });
+                
+                log("Game ended with score: " + gameState.score);
+            } catch (error) {
+                showError("Error ending game: " + error.message);
+            }
+        }
+        
+        function advanceLevel() {
+            try {
+                // Increase level counter
+                gameState.currentLevel++;
+                log("Advancing to level: " + gameState.currentLevel);
+                
+                // Check if all levels are complete
+                if (gameState.currentLevel >= levels.length) {
+                    log("All levels completed!");
+                    endGame();
+                    return;
+                }
+                
+                // Reset player position
+                player.x = 100;
+                player.y = 350;
+                player.velocityY = 0;
+                
+                // Add bonus points
+                gameState.updateScore(50);
+                
+                // Show level announcement
+                const levelName = levels[gameState.currentLevel].name;
+                showLevelMessage(`Level ${gameState.currentLevel + 1}: ${levelName}`);
+                
+                log("Advanced to level " + gameState.currentLevel);
+            } catch (error) {
+                showError("Error advancing level: " + error.message);
             }
         }
         
@@ -553,19 +1565,200 @@
                 document.body.appendChild(levelMessage);
                 
                 setTimeout(() => {
-                    document.body.removeChild(levelMessage);
+                    if (document.body.contains(levelMessage)) {
+                        document.body.removeChild(levelMessage);
+                    }
                 }, 2000);
             } catch (error) {
                 console.error("Error showing level message:", error);
             }
         }
         
-        // Additional inline start button handler (belt and suspenders approach)
-        document.getElementById('startButton').onclick = function() {
-            console.log("Inline start button handler");
-            startGame();
-            return true;
-        };
+        // High scores display
+        function displayHighScores() {
+            try {
+                const highScoresList = document.getElementById('highScoresList');
+                
+                if (highScoresList) {
+                    if (gameState.highScores.length > 0) {
+                        highScoresList.innerHTML = gameState.highScores.map((score, index) => 
+                            `<div>${index + 1}. ${score.score} - Level ${score.level}</div>`
+                        ).join('');
+                    } else {
+                        highScoresList.innerHTML = "<div>No high scores yet!</div>";
+                    }
+                }
+            } catch (error) {
+                console.error("Error displaying high scores:", error);
+            }
+        }
+        
+        function loadHighScores() {
+            try {
+                const savedScores = localStorage.getItem('flameWalkerScores');
+                
+                if (savedScores) {
+                    gameState.highScores = JSON.parse(savedScores);
+                    displayHighScores();
+                } else {
+                    displayHighScores();
+                }
+            } catch (error) {
+                showError("Error loading high scores: " + error.message);
+            }
+        }
+        
+        // Input handling
+        function setupInputHandlers() {
+            try {
+                // Keyboard input
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') gameState.keys.left = true;
+                    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') gameState.keys.right = true;
+                    if (e.key === 'ArrowUp' || e.key === ' ' || e.key.toLowerCase() === 'w') gameState.keys.up = true;
+                    
+                    // Level skip (debug)
+                    if (e.key.toLowerCase() === 'n' && DEBUG_MODE) {
+                        log("Debug: Skipping to next level");
+                        advanceLevel();
+                    }
+                    
+                    // Super jump (debug)
+                    if (e.key.toLowerCase() === 'j' && DEBUG_MODE) {
+                        player.velocityY = -player.jumpForce * 1.5;
+                        player.isJumping = true;
+                        log("Debug: Super jump activated");
+                    }
+                });
+                
+                window.addEventListener('keyup', (e) => {
+                    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') gameState.keys.left = false;
+                    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') gameState.keys.right = false;
+                    if (e.key === 'ArrowUp' || e.key === ' ' || e.key.toLowerCase() === 'w') gameState.keys.up = false;
+                });
+                
+                // Touch controls
+                setupTouchControls();
+                
+                log("Input handlers set up");
+            } catch (error) {
+                showError("Error setting up input handlers: " + error.message);
+            }
+        }
+        
+        function setupTouchControls() {
+            try {
+                const joystickContainer = document.getElementById('joystickContainer');
+                const joystick = document.getElementById('joystick');
+                const jumpBtn = document.getElementById('jumpBtn');
+                
+                if (!joystickContainer || !joystick || !jumpBtn) {
+                    throw new Error("Touch control elements not found");
+                }
+                
+                // Joystick controls
+                let joystickActive = false;
+                let joystickStartX = 0;
+                
+                joystickContainer.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const rect = joystickContainer.getBoundingClientRect();
+                    joystickStartX = touch.clientX - rect.left;
+                    joystickActive = true;
+                });
+                
+                joystickContainer.addEventListener('touchmove', (e) => {
+                    if (!joystickActive) return;
+                    e.preventDefault();
+                    
+                    const touch = e.touches[0];
+                    const rect = joystickContainer.getBoundingClientRect();
+                    const joystickX = touch.clientX - rect.left;
+                    
+                    const maxDistance = 35;
+                    const limitedX = Math.max(-maxDistance, Math.min(maxDistance, joystickX - joystickStartX));
+                    
+                    joystick.style.transform = `translate(calc(-50% + ${limitedX}px), -50%)`;
+                    
+                    if (limitedX < -10) {
+                        gameState.keys.left = true;
+                        gameState.keys.right = false;
+                    } else if (limitedX > 10) {
+                        gameState.keys.right = true;
+                        gameState.keys.left = false;
+                    } else {
+                        gameState.keys.left = false;
+                        gameState.keys.right = false;
+                    }
+                });
+                
+                joystickContainer.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    joystickActive = false;
+                    gameState.keys.left = false;
+                    gameState.keys.right = false;
+                    joystick.style.transform = 'translate(-50%, -50%)';
+                });
+                
+                // Jump button controls
+                jumpBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    gameState.keys.up = true;
+                });
+                
+                jumpBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    gameState.keys.up = false;
+                });
+                
+                log("Touch controls set up");
+            } catch (error) {
+                showError("Error setting up touch controls: " + error.message);
+            }
+        }
+        
+        // Initialization on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            log("DOM loaded");
+            
+            // Setup canvas
+            setupCanvas();
+            
+            // Load high scores
+            loadHighScores();
+            
+            // Setup input
+            setupInputHandlers();
+            
+            // Attach button event listeners
+            const startButton = document.getElementById('startButton');
+            if (startButton) {
+                startButton.addEventListener('click', function() {
+                    log("Start button clicked");
+                    startGame();
+                });
+            } else {
+                showError("Start button not found!");
+            }
+            
+            const restartButton = document.getElementById('restartButton');
+            if (restartButton) {
+                restartButton.addEventListener('click', function() {
+                    log("Restart button clicked");
+                    startGame();
+                });
+            }
+            
+            // Backup: Inline click handler
+            document.getElementById('startButton').onclick = function() {
+                log("Start button clicked (inline)");
+                startGame();
+                return true;
+            };
+            
+            log("Game initialization complete");
+        });
     </script>
 </body>
 </html>
