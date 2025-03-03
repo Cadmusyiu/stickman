@@ -62,11 +62,13 @@
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="none" stroke="rgba(255,69,0,0.1)" stroke-width="2"/></svg>');
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             z-index: 10;
             color: white;
             text-align: center;
+            padding: 20px;
+            overflow-y: auto; /* Allow scrolling if needed */
         }
         
         #gameScreen {
@@ -91,6 +93,7 @@
             box-shadow: 0 5px 15px rgba(255, 69, 0, 0.4);
             position: relative;
             overflow: hidden;
+            z-index: 12; /* Ensure button is above other elements */
         }
         
         #startButton:hover {
@@ -230,11 +233,25 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 69, 0, 0.3);
             transition: all 0.3s ease;
+            margin-top: 30px; /* Increased margin to avoid overlap */
+            position: relative; /* Add positioning context */
         }
         
         #highScores:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .button-container {
+            margin: 20px 0;
+            position: relative;
+            z-index: 12;
+        }
+        
+        .scores-container {
+            margin-top: 20px;
+            position: relative;
+            z-index: 11;
         }
         
         #gameOverlay {
@@ -341,6 +358,7 @@
         <canvas id="gameCanvas"></canvas>
         
         <div id="menuOverlay">
+            <div style="height: 10vh"></div>
             <div id="titleContainer">
                 <h1 id="gameTitle">Flame Walker</h1>
                 <div id="animatedFlame">
@@ -355,11 +373,17 @@
             <div id="stickman-animation">
                 <div class="stickman-character"></div>
             </div>
-            <button id="startButton">START GAME</button>
-            <div id="highScores">
-                <h2>High Scores</h2>
-                <div id="highScoresList"></div>
+            <div class="button-container">
+                <button id="startButton">START GAME</button>
             </div>
+            <div style="height: 30px"></div>
+            <div class="scores-container">
+                <div id="highScores">
+                    <h2>High Scores</h2>
+                    <div id="highScoresList"></div>
+                </div>
+            </div>
+            <div style="height: 10vh"></div>
         </div>
         
         <div id="gameScreen">
