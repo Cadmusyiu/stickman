@@ -139,6 +139,16 @@
 
     <canvas id="gameCanvas"></canvas>
     <div id="debugInfo"></div>
+    
+    <div id="instructions" style="position: absolute; top: 10px; right: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; font-size: 12px; display: none;">
+        <h3>Controls:</h3>
+        <p>Move: Arrow Keys or A/D</p>
+        <p>Jump: Up Arrow, W, or Space</p>
+        <p>Debug Keys:</p>
+        <p>- N: Skip to next level</p>
+        <p>- J: Super jump</p>
+        <p>- D: Toggle debug info</p>
+    </div>
 
     <div id="controls">
         <div id="joystickContainer">
@@ -256,7 +266,7 @@
                     ],
                     collectibles: [
                         { x: 300, y: 270, width: 20, height: 20, type: 'flame', value: 15 },
-                        { x: 500, y: 220, width: 20, height: 20, type: 'powerup', effect: 'speedBoost' }
+                        { x: 500, y: 220, width: 20, height: 20, type: 'flame', value: 15 }
                     ]
                 }
             ];
@@ -272,6 +282,7 @@
                 speed: 5,
                 jumpForce: 12,
                 isJumping: false,
+                coyoteTime: 0, // Time after leaving platform where jump is still allowed
                 flameSize: 100,
                 invincible: false,
 
@@ -280,15 +291,16 @@
                         // Apply gravity
                         this.velocityY += 0.5;
 
-                        // Movement
-                        if (keys.left) this.velocityX = -this.speed;
-                        else if (keys.right) this.velocityX = this.speed;
+                        // Movement - increased speed slightly for better gameplay
+                        if (keys.left) this.velocityX = -this.speed * 1.2;
+                        else if (keys.right) this.velocityX = this.speed * 1.2;
                         else this.velocityX = 0;
 
-                        // Jump
-                        if (keys.up && !this.isJumping) {
+                        // Jump - allow small "coyote time" for better jump feel
+                        if (keys.up && (!this.isJumping || this.coyoteTime > 0)) {
                             this.velocityY = -this.jumpForce;
                             this.isJumping = true;
+                            this.coyoteTime = 0;
                         }
 
                         // Update position
@@ -311,8 +323,14 @@
                                     this.velocityY = 0;
                                     this.isJumping = false;
                                     onGround = true;
+                                    this.coyoteTime = 5; // Set coyote time when on ground
                                 }
                             });
+                            
+                            // Reduce coyote time if not on ground
+                            if (!onGround && this.coyoteTime > 0) {
+                                this.coyoteTime--;
+                            }
                         }
 
                         // Boundary checks
@@ -454,15 +472,28 @@
             // Keyboard Controls
             function setupKeyboardControls() {
                 window.addEventListener('keydown', (e) => {
-                    if (e.key === 'ArrowLeft') keys.left = true;
-                    if (e.key === 'ArrowRight') keys.right = true;
-                    if (e.key === 'ArrowUp' || e.key === ' ') keys.up = true;
+                    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') keys.left = true;
+                    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = true;
+                    if (e.key === 'ArrowUp' || e.key === ' ' || e.key.toLowerCase() === 'w') keys.up = true;
+                    
+                    // Level skip - press 'N' (debugging feature)
+                    if (e.key.toLowerCase() === 'n' && gameState.gameActive) {
+                        console.log("Skipping to next level");
+                        advanceLevel();
+                    }
+                    
+                    // Super jump - press 'J' (debugging feature)
+                    if (e.key.toLowerCase() === 'j' && gameState.gameActive) {
+                        player.velocityY = -player.jumpForce * 1.5;
+                        player.isJumping = true;
+                        console.log("Super jump activated");
+                    }
                 });
 
                 window.addEventListener('keyup', (e) => {
-                    if (e.key === 'ArrowLeft') keys.left = false;
-                    if (e.key === 'ArrowRight') keys.right = false;
-                    if (e.key === 'ArrowUp' || e.key === ' ') keys.up = false;
+                    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') keys.left = false;
+                    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = false;
+                    if (e.key === 'ArrowUp' || e.key === ' ' || e.key.toLowerCase() === 'w') keys.up = false;
                 });
             }
 
@@ -552,6 +583,14 @@
                             levels[gameState.currentLevel].name, 
                             canvas.width/2, 
                             30
+                        );
+                        
+                        // Show collectibles remaining
+                        const remainingItems = levels[gameState.currentLevel].collectibles?.length || 0;
+                        ctx.fillText(
+                            `Flames Remaining: ${remainingItems}`, 
+                            canvas.width/2, 
+                            60
                         );
                     }
                     ctx.textAlign = 'left';
