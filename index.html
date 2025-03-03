@@ -334,7 +334,7 @@
         <div id="stickman-animation">
             <div class="stickman-character"></div>
         </div>
-        <button id="startButton">START GAME</button>
+        <button id="startButton" onclick="startGame()">START GAME</button>
         <div id="highScores">
             <h2>High Scores</h2>
             <div id="highScoresList"></div>
@@ -368,28 +368,76 @@
     </div>
 
     <script>
+        // Fallback direct script to ensure game starts
+        window.onload = function() {
+            console.log("Window loaded - direct script");
+            
+            // Check if startGame function exists
+            if (typeof window.startGame === 'function') {
+                // Wait for some time to allow regular event handlers to work
+                setTimeout(function() {
+                    // Check if game has already started
+                    const menuOverlay = document.getElementById('menuOverlay');
+                    if (menuOverlay && menuOverlay.style.display !== 'none') {
+                        console.log("Fallback: directly attaching click handler to start button");
+                        const startButton = document.getElementById('startButton');
+                        if (startButton) {
+                            startButton.onclick = function() {
+                                console.log("Start button clicked via fallback");
+                                window.startGame();
+                                return true;
+                            };
+                        }
+                    }
+                }, 1000);
+            } else {
+                console.error("startGame function not found in global scope!");
+            }
+        };
+    </script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Debug element
-            const debugInfo = document.getElementById('debugInfo');
+            // Debug mode
+            window.debugMode = true;
+            
+            // Add global error handler
+            window.onerror = function(message, source, lineno, colno, error) {
+                console.error("Global error:", message, "at", source, lineno, colno);
+                alert("Game error: " + message);
+                return false;
+            };
             
             function debugLog(message) {
-                console.log(message);
-                debugInfo.textContent += message + "\n";
-                debugInfo.style.display = 'block';
+                if (window.debugMode) {
+                    console.log("DEBUG:", message);
+                }
             }
-
+            
+            debugLog("Document loaded, initializing game...");
+            
             // Game Configuration
             const canvas = document.getElementById('gameCanvas');
+            debugLog("Canvas element found: " + (canvas !== null));
+            
             const ctx = canvas.getContext('2d');
+            debugLog("Canvas context created: " + (ctx !== null));
+            
             const menuOverlay = document.getElementById('menuOverlay');
             const gameOverlay = document.getElementById('gameOverlay');
             const startButton = document.getElementById('startButton');
             const restartButton = document.getElementById('restartButton');
             const highScoresList = document.getElementById('highScoresList');
+            
+            debugLog("UI elements found: " + 
+                     "menuOverlay=" + (menuOverlay !== null) + 
+                     ", gameOverlay=" + (gameOverlay !== null) + 
+                     ", startButton=" + (startButton !== null) + 
+                     ", restartButton=" + (restartButton !== null));
 
             // Canvas Setup
             canvas.width = 800;
             canvas.height = 450;
+            
+            debugLog("Canvas size set to " + canvas.width + "x" + canvas.height);
 
             // Game State
             const gameState = {
