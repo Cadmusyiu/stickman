@@ -20,6 +20,7 @@
             max-width: 100%;
             max-height: 100%;
             background-color: #222;
+            display: block; /* Ensure canvas is displayed as block */
         }
         #menuOverlay {
             position: absolute;
@@ -108,6 +109,16 @@
             z-index: 20;
             color: white;
         }
+        #debugInfo {
+            position: absolute;
+            bottom: 100px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 5px;
+            font-size: 12px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -127,6 +138,7 @@
     </div>
 
     <canvas id="gameCanvas"></canvas>
+    <div id="debugInfo"></div>
 
     <div id="controls">
         <div id="joystickContainer">
@@ -137,6 +149,15 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Debug element
+            const debugInfo = document.getElementById('debugInfo');
+            
+            function debugLog(message) {
+                console.log(message);
+                debugInfo.textContent += message + "\n";
+                debugInfo.style.display = 'block';
+            }
+
             // Game Configuration
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
@@ -165,7 +186,8 @@
                 },
 
                 updateScoreDisplay() {
-                    // Implement score display logic
+                    // Implementation is missing in original code
+                    // Adding simple implementation
                 },
 
                 saveHighScore() {
@@ -203,6 +225,8 @@
                 {
                     name: "Forest Path",
                     background: "linear-gradient(to bottom, #87CEEB, #228B22)",
+                    backgroundColor1: "#87CEEB",  // Sky blue
+                    backgroundColor2: "#228B22",  // Forest green
                     platforms: [
                         { x: 0, y: 400, width: 200, height: 20 },
                         { x: 250, y: 350, width: 150, height: 20 },
@@ -218,6 +242,8 @@
                 {
                     name: "Mountain Pass",
                     background: "linear-gradient(to bottom, #B0E0E6, #A0522D)",
+                    backgroundColor1: "#B0E0E6",  // Powder blue
+                    backgroundColor2: "#A0522D",  // Sienna
                     platforms: [
                         { x: 0, y: 400, width: 150, height: 20 },
                         { x: 200, y: 350, width: 150, height: 20 },
@@ -249,98 +275,108 @@
                 invincible: false,
 
                 update(keys, currentLevel) {
-                    // Apply gravity
-                    this.velocityY += 0.5;
+                    try {
+                        // Apply gravity
+                        this.velocityY += 0.5;
 
-                    // Movement
-                    if (keys.left) this.velocityX = -this.speed;
-                    else if (keys.right) this.velocityX = this.speed;
-                    else this.velocityX = 0;
+                        // Movement
+                        if (keys.left) this.velocityX = -this.speed;
+                        else if (keys.right) this.velocityX = this.speed;
+                        else this.velocityX = 0;
 
-                    // Jump
-                    if (keys.up && !this.isJumping) {
-                        this.velocityY = -this.jumpForce;
-                        this.isJumping = true;
-                    }
+                        // Jump
+                        if (keys.up && !this.isJumping) {
+                            this.velocityY = -this.jumpForce;
+                            this.isJumping = true;
+                        }
 
-                    // Update position
-                    this.x += this.velocityX;
-                    this.y += this.velocityY;
+                        // Update position
+                        this.x += this.velocityX;
+                        this.y += this.velocityY;
 
-                    // Platform collision
-                    const platforms = currentLevel.platforms;
-                    let onGround = false;
-                    platforms.forEach(platform => {
-                        if (
-                            this.x + this.width > platform.x &&
-                            this.x < platform.x + platform.width &&
-                            this.y + this.height > platform.y &&
-                            this.y + this.height < platform.y + 10 &&
-                            this.velocityY > 0
-                        ) {
-                            this.y = platform.y - this.height;
+                        // Platform collision
+                        if (currentLevel && currentLevel.platforms) {
+                            const platforms = currentLevel.platforms;
+                            let onGround = false;
+                            platforms.forEach(platform => {
+                                if (
+                                    this.x + this.width > platform.x &&
+                                    this.x < platform.x + platform.width &&
+                                    this.y + this.height > platform.y &&
+                                    this.y + this.height < platform.y + 10 &&
+                                    this.velocityY > 0
+                                ) {
+                                    this.y = platform.y - this.height;
+                                    this.velocityY = 0;
+                                    this.isJumping = false;
+                                    onGround = true;
+                                }
+                            });
+                        }
+
+                        // Boundary checks
+                        if (this.x < 0) this.x = 0;
+                        if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                        if (this.y + this.height > canvas.height) {
+                            this.y = canvas.height - this.height;
                             this.velocityY = 0;
                             this.isJumping = false;
-                            onGround = true;
                         }
-                    });
 
-                    // Boundary checks
-                    if (this.x < 0) this.x = 0;
-                    if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
-                    if (this.y + this.height > canvas.height) {
-                        this.y = canvas.height - this.height;
-                        this.velocityY = 0;
-                        this.isJumping = false;
+                        // Flame reduction
+                        this.flameSize = Math.max(0, this.flameSize - 0.1);
+                    } catch (error) {
+                        console.error("Error in player update:", error);
                     }
-
-                    // Flame reduction
-                    this.flameSize = Math.max(0, this.flameSize - 0.1);
                 },
 
                 draw(ctx) {
-                    // Stick figure drawing logic with flame
-                    ctx.strokeStyle = this.invincible ? 'cyan' : 'red';
-                    ctx.lineWidth = 2;
+                    try {
+                        // Stick figure drawing logic with flame
+                        ctx.strokeStyle = this.invincible ? 'cyan' : 'red';
+                        ctx.lineWidth = 2;
 
-                    // Head
-                    ctx.beginPath();
-                    ctx.arc(this.x + this.width/2, this.y, 10, 0, Math.PI * 2);
-                    ctx.stroke();
+                        // Head
+                        ctx.beginPath();
+                        ctx.arc(this.x + this.width/2, this.y, 10, 0, Math.PI * 2);
+                        ctx.stroke();
 
-                    // Body
-                    ctx.beginPath();
-                    ctx.moveTo(this.x + this.width/2, this.y + 10);
-                    ctx.lineTo(this.x + this.width/2, this.y + 30);
-                    ctx.stroke();
+                        // Body
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2, this.y + 10);
+                        ctx.lineTo(this.x + this.width/2, this.y + 30);
+                        ctx.stroke();
 
-                    // Arms
-                    ctx.beginPath();
-                    ctx.moveTo(this.x + this.width/2 - 10, this.y + 20);
-                    ctx.lineTo(this.x + this.width/2, this.y + 20);
-                    ctx.lineTo(this.x + this.width/2 + 10, this.y + 20);
-                    ctx.stroke();
+                        // Arms
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2 - 10, this.y + 20);
+                        ctx.lineTo(this.x + this.width/2, this.y + 20);
+                        ctx.lineTo(this.x + this.width/2 + 10, this.y + 20);
+                        ctx.stroke();
 
-                    // Legs
-                    ctx.beginPath();
-                    ctx.moveTo(this.x + this.width/2, this.y + 30);
-                    ctx.lineTo(this.x + this.width/2 - 8, this.y + 40);
-                    ctx.moveTo(this.x + this.width/2, this.y + 30);
-                    ctx.lineTo(this.x + this.width/2 + 8, this.y + 40);
-                    ctx.stroke();
+                        // Legs
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2, this.y + 30);
+                        ctx.lineTo(this.x + this.width/2 - 8, this.y + 40);
+                        ctx.moveTo(this.x + this.width/2, this.y + 30);
+                        ctx.lineTo(this.x + this.width/2 + 8, this.y + 40);
+                        ctx.stroke();
 
-                    // Flame with dynamic size
-                    const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
-                    ctx.beginPath();
-                    ctx.moveTo(this.x + this.width/2 - 5, this.y - 10);
-                    ctx.quadraticCurveTo(
-                        this.x + this.width/2, 
-                        this.y - 10 - flameHeight * (this.flameSize / 100), 
-                        this.x + this.width/2 + 5, 
-                        this.y - 10
-                    );
-                    ctx.fillStyle = 'orange';
-                    ctx.fill();
+                        // Flame with dynamic size
+                        const flameHeight = 15 + Math.sin(Date.now() / 100) * 3;
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + this.width/2 - 5, this.y - 10);
+                        ctx.quadraticCurveTo(
+                            this.x + this.width/2, 
+                            this.y - 10 - flameHeight * (this.flameSize / 100), 
+                            this.x + this.width/2 + 5, 
+                            this.y - 10
+                        );
+                        ctx.fillStyle = 'orange';
+                        ctx.fill();
+                    } catch (error) {
+                        console.error("Error drawing player:", error);
+                    }
                 }
             };
 
@@ -431,16 +467,28 @@
 
             // Game Rendering Functions
             function drawBackground(level) {
-                // Create gradient background based on level
-                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                gradient.addColorStop(0, level.background.split(',')[0].split('(')[1].trim());
-                gradient.addColorStop(1, level.background.split(',')[1].split(')')[0].trim());
-                
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                try {
+                    // FIX: Use direct color references instead of parsing
+                    const startColor = level.backgroundColor1 || "#87CEEB";
+                    const endColor = level.backgroundColor2 || "#228B22";
+                    
+                    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                    gradient.addColorStop(0, startColor);
+                    gradient.addColorStop(1, endColor);
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                } catch (error) {
+                    console.error("Error drawing background:", error);
+                    // Fallback to solid color
+                    ctx.fillStyle = "#333";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
             }
 
             function drawPlatforms(platforms) {
+                if (!platforms || !Array.isArray(platforms)) return;
+                
                 ctx.fillStyle = '#555';
                 platforms.forEach(platform => {
                     ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
@@ -448,6 +496,8 @@
             }
 
             function drawObstacles(obstacles) {
+                if (!obstacles || !Array.isArray(obstacles)) return;
+                
                 ctx.fillStyle = '#8B4513'; // Brown color for obstacles
                 obstacles.forEach(obstacle => {
                     ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
@@ -455,6 +505,8 @@
             }
 
             function drawCollectibles(collectibles) {
+                if (!collectibles || !Array.isArray(collectibles)) return;
+                
                 collectibles.forEach(collectible => {
                     if (collectible.type === 'flame') {
                         ctx.fillStyle = 'orange';
@@ -483,126 +535,164 @@
             }
 
             function drawUI() {
-                // Score
-                ctx.fillStyle = 'white';
-                ctx.font = '20px Arial';
-                ctx.fillText(`Score: ${gameState.score}`, 20, 30);
+                try {
+                    // Score
+                    ctx.fillStyle = 'white';
+                    ctx.font = '20px Arial';
+                    ctx.fillText(`Score: ${gameState.score}`, 20, 30);
 
-                // Lives
-                ctx.fillText(`Lives: ${gameState.lives}`, 20, 60);
+                    // Lives
+                    ctx.fillText(`Lives: ${gameState.lives}`, 20, 60);
 
-                // Level Name
-                ctx.textAlign = 'center';
-                ctx.fillText(
-                    levels[gameState.currentLevel].name, 
-                    canvas.width/2, 
-                    30
-                );
-                ctx.textAlign = 'left';
+                    // Level Name
+                    ctx.textAlign = 'center';
+                    if (levels[gameState.currentLevel]) {
+                        ctx.fillText(
+                            levels[gameState.currentLevel].name, 
+                            canvas.width/2, 
+                            30
+                        );
+                    }
+                    ctx.textAlign = 'left';
 
-                // Flame Meter
-                ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                ctx.fillRect(canvas.width - 220, 20, 200, 20);
-                
-                const flameWidth = player.flameSize * 2;
-                ctx.fillStyle = `rgb(
-                    255, 
-                    ${Math.min(255, 100 + player.flameSize)}, 
-                    ${Math.min(255, 50 + player.flameSize / 2)}
-                )`;
-                ctx.fillRect(canvas.width - 220, 20, flameWidth, 20);
+                    // Flame Meter
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(canvas.width - 220, 20, 200, 20);
+                    
+                    const flameWidth = player.flameSize * 2;
+                    ctx.fillStyle = `rgb(
+                        255, 
+                        ${Math.min(255, 100 + player.flameSize)}, 
+                        ${Math.min(255, 50 + player.flameSize / 2)}
+                    )`;
+                    ctx.fillRect(canvas.width - 220, 20, flameWidth, 20);
+                } catch (error) {
+                    console.error("Error drawing UI:", error);
+                }
             }
 
             // Collision Detection
             function checkCollectibleCollision() {
-                const currentLevel = levels[gameState.currentLevel];
-                currentLevel.collectibles = currentLevel.collectibles.filter(collectible => {
-                    if (
-                        player.x < collectible.x + collectible.width &&
-                        player.x + player.width > collectible.x &&
-                        player.y < collectible.y + collectible.height &&
-                        player.y + player.height > collectible.y
-                    ) {
-                        // Collect item
-                        if (collectible.type === 'flame') {
-                            gameState.updateScore(collectible.value);
-                            player.flameSize = Math.min(100, player.flameSize + 20);
-                        } else if (collectible.type === 'powerup') {
-                            // Apply power-up effect
-                            player.invincible = true;
-                            setTimeout(() => {
-                                player.invincible = false;
-                            }, 3000);
+                try {
+                    const currentLevel = levels[gameState.currentLevel];
+                    if (!currentLevel || !currentLevel.collectibles) return;
+                    
+                    currentLevel.collectibles = currentLevel.collectibles.filter(collectible => {
+                        if (
+                            player.x < collectible.x + collectible.width &&
+                            player.x + player.width > collectible.x &&
+                            player.y < collectible.y + collectible.height &&
+                            player.y + player.height > collectible.y
+                        ) {
+                            // Collect item
+                            if (collectible.type === 'flame') {
+                                gameState.updateScore(collectible.value);
+                                player.flameSize = Math.min(100, player.flameSize + 20);
+                            } else if (collectible.type === 'powerup') {
+                                // Apply power-up effect
+                                player.invincible = true;
+                                setTimeout(() => {
+                                    player.invincible = false;
+                                }, 3000);
+                            }
+                            return false; // Remove collectible
                         }
-                        return false; // Remove collectible
-                    }
-                    return true;
-                });
+                        return true;
+                    });
+                } catch (error) {
+                    console.error("Error checking collectible collision:", error);
+                }
             }
 
             // Game Loop
             function gameLoop(timestamp) {
-                // Clear canvas
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                try {
+                    // Clear canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // Current level
-                const currentLevel = levels[gameState.currentLevel];
+                    // Current level
+                    const currentLevel = levels[gameState.currentLevel];
+                    if (!currentLevel) {
+                        console.error("Current level not found:", gameState.currentLevel);
+                        endGame();
+                        return;
+                    }
 
-                // Draw background
-                drawBackground(currentLevel);
+                    // Draw background
+                    drawBackground(currentLevel);
 
-                // Draw game elements
-                drawPlatforms(currentLevel.platforms);
-                drawObstacles(currentLevel.obstacles);
-                drawCollectibles(currentLevel.collectibles);
+                    // Draw game elements
+                    drawPlatforms(currentLevel.platforms);
+                    drawObstacles(currentLevel.obstacles);
+                    drawCollectibles(currentLevel.collectibles);
 
-                // Update and draw player
-                player.update(keys, currentLevel);
-                player.draw(ctx);
+                    // Update and draw player
+                    player.update(keys, currentLevel);
+                    player.draw(ctx);
 
-                // Draw UI
-                drawUI();
+                    // Draw UI
+                    drawUI();
 
-                // Check collectible collisions
-                checkCollectibleCollision();
+                    // Check collectible collisions
+                    checkCollectibleCollision();
 
-                // Game over conditions
-                if (player.flameSize <= 0 || gameState.lives <= 0) {
-                    endGame();
-                    return;
-                }
+                    // Game over conditions
+                    if (player.flameSize <= 0 || gameState.lives <= 0) {
+                        endGame();
+                        return;
+                    }
 
-                // Level complete condition
-                if (currentLevel.collectibles.length === 0) {
-                    advanceLevel();
-                }
+                    // Level complete condition
+                    if (currentLevel.collectibles && currentLevel.collectibles.length === 0) {
+                        advanceLevel();
+                    }
 
-                // Continue game loop
-                if (gameState.gameActive) {
-                    requestAnimationFrame(gameLoop);
+                    // Continue game loop
+                    if (gameState.gameActive) {
+                        requestAnimationFrame(gameLoop);
+                    }
+                } catch (error) {
+                    console.error("Error in game loop:", error);
+                    
+                    // Display error on screen
+                    ctx.fillStyle = "red";
+                    ctx.font = "20px Arial";
+                    ctx.fillText("Game Error! Check console.", 20, canvas.height/2);
+                    
+                    gameState.gameActive = false;
                 }
             }
 
             // Game Management Functions
             function startGame() {
-                // Reset game state
-                gameState.score = 0;
-                gameState.lives = 3;
-                gameState.currentLevel = 0;
-                gameState.gameActive = true;
+                try {
+                    console.log("Starting game...");
+                    
+                    // Reset game state
+                    gameState.score = 0;
+                    gameState.lives = 3;
+                    gameState.currentLevel = 0;
+                    gameState.gameActive = true;
 
-                // Reset player
-                player.x = 100;
-                player.y = 350;
-                player.flameSize = 100;
-                player.invincible = false;
+                    // Reset player
+                    player.x = 100;
+                    player.y = 350;
+                    player.flameSize = 100;
+                    player.invincible = false;
 
-                // Hide menu, show game
-                menuOverlay.style.display = 'none';
-                gameOverlay.style.display = 'none';
+                    // Hide menu, show game
+                    menuOverlay.style.display = 'none';
+                    gameOverlay.style.display = 'none';
+                    
+                    // Make sure canvas is visible
+                    canvas.style.display = 'block';
 
-                // Start game loop
-                requestAnimationFrame(gameLoop);
+                    // Start game loop
+                    requestAnimationFrame(gameLoop);
+                } catch (error) {
+                    console.error("Error starting game:", error);
+                    debugLog("Error starting game: " + error.message);
+                }
             }
 
             function endGame() {
@@ -655,6 +745,14 @@
 
             window.addEventListener('resize', handleResize);
             handleResize();
+            
+            // Add debug mode toggle
+            window.addEventListener('keydown', (e) => {
+                // Press D key to toggle debug mode
+                if (e.key === 'd' || e.key === 'D') {
+                    debugInfo.style.display = debugInfo.style.display === 'block' ? 'none' : 'block';
+                }
+            });
         });
     </script>
 </body>
