@@ -174,7 +174,7 @@
         #joystickContainer {
             width: 20vmin;
             height: 20vmin;
-            background-color: rgba(255,255,255,0.1);
+            background-color: rgba(255,255,255,0.2);
             border-radius: 50%;
             position: relative;
             pointer-events: auto;
@@ -184,7 +184,7 @@
         #joystick {
             width: 8vmin;
             height: 8vmin;
-            background-color: rgba(255,255,255,0.4);
+            background-color: rgba(255,255,255,0.5);
             border-radius: 50%;
             position: absolute;
             top: 50%;
@@ -255,6 +255,19 @@
             z-index: 25;
             display: none;
         }
+        
+        #debugInfo {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 10px;
+            z-index: 100;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -296,20 +309,34 @@
             <p>Move: Arrow Keys or A/D</p>
             <p>Jump: Up Arrow, W, or Space</p>
         </div>
+        
+        <div id="debugInfo"></div>
     </div>
 
     <script>
-        // Global configuration
-        const DEBUG_MODE = false;
+        // Debug mode
+        const DEBUG_MODE = true;
         
-        function log(message) {
+        function debugLog(message) {
             if (DEBUG_MODE) {
                 console.log(message);
+                const debugEl = document.getElementById('debugInfo');
+                if (debugEl) {
+                    debugEl.style.display = 'block';
+                    debugEl.innerHTML += message + "<br>";
+                    
+                    // Limit debug lines
+                    const lines = debugEl.innerHTML.split('<br>');
+                    if (lines.length > 10) {
+                        debugEl.innerHTML = lines.slice(lines.length - 10).join('<br>');
+                    }
+                }
             }
         }
         
         function showError(message) {
             console.error(message);
+            debugLog("ERROR: " + message);
         }
 
         // Game state
@@ -327,27 +354,6 @@
             
             updateScore(points) {
                 this.score += points;
-                this.displayScore();
-            },
-            
-            displayScore() {
-                // Will be implemented in the render cycle
-            },
-            
-            saveHighScore() {
-                const newScore = {
-                    score: this.score,
-                    level: this.currentLevel + 1,
-                    date: new Date().toISOString()
-                };
-                
-                this.highScores.push(newScore);
-                this.highScores.sort((a, b) => b.score - a.score);
-                this.highScores = this.highScores.slice(0, 5); // Keep top 5 scores
-                
-                // Save to localStorage
-                localStorage.setItem('flameWalkerScores', JSON.stringify(this.highScores));
-                displayHighScores();
             },
             
             reset() {
@@ -355,13 +361,14 @@
                 this.lives = 3;
                 this.currentLevel = 0;
                 this.gameActive = true;
+                debugLog("Game state reset");
             }
         };
         
         // Player object
         const player = {
             x: 100,
-            y: 350,
+            y: 300, // Start higher to avoid falling immediately
             width: 20,
             height: 40,
             velocityX: 0,
@@ -378,8 +385,14 @@
                 this.velocityY += 0.5;
                 
                 // Apply movement from input
-                if (gameState.keys.left) this.velocityX = -this.speed;
-                else if (gameState.keys.right) this.velocityX = this.speed;
+                if (gameState.keys.left) {
+                    this.velocityX = -this.speed;
+                    debugLog("Moving left");
+                }
+                else if (gameState.keys.right) {
+                    this.velocityX = this.speed;
+                    debugLog("Moving right");
+                }
                 else this.velocityX = 0;
                 
                 // Apply jump
@@ -387,6 +400,7 @@
                     this.velocityY = -this.jumpForce;
                     this.isJumping = true;
                     this.coyoteTime = 0;
+                    debugLog("Jumping");
                 }
                 
                 // Update position
@@ -399,11 +413,13 @@
                 
                 // Check for falling off the bottom
                 if (this.y > canvas.height) {
+                    debugLog("Player fell off bottom");
                     this.y = canvas.height - this.height;
                     this.velocityY = 0;
                     gameState.lives--;
                     
                     if (gameState.lives <= 0) {
+                        debugLog("No lives left - ending game");
                         endGame();
                     } else {
                         // Reset player position
@@ -411,11 +427,12 @@
                     }
                 }
                 
-                // Reduce flame size over time
-                this.flameSize = Math.max(0, this.flameSize - 0.1);
+                // Reduce flame size over time (slower rate for mobile)
+                this.flameSize = Math.max(0, this.flameSize - 0.05);
                 
                 // Check if flame is out
                 if (this.flameSize <= 0) {
+                    debugLog("Flame out - ending game");
                     endGame();
                 }
                 
@@ -598,14 +615,24 @@
                 let onGround = false;
                 
                 platforms.forEach(platform => {
+                    // Get scaled platform coordinates
+                    const scaleX = canvas.width / 800;
+                    const scaleY = canvas.height / 450;
+                    
+                    const scaledX = platform.x * scaleX;
+                    const scaledY = platform.y * scaleY;
+                    const scaledWidth = platform.width * scaleX;
+                    const scaledHeight = platform.height * scaleY;
+                    
+                    // Check collision
                     if (
-                        this.x + this.width > platform.x &&
-                        this.x < platform.x + platform.width &&
-                        this.y + this.height > platform.y &&
-                        this.y + this.height < platform.y + 10 && // Check only the top edge
+                        this.x + this.width > scaledX &&
+                        this.x < scaledX + scaledWidth &&
+                        this.y + this.height > scaledY &&
+                        this.y + this.height < scaledY + 10 && // Check only the top edge
                         this.velocityY > 0
                     ) {
-                        this.y = platform.y - this.height;
+                        this.y = scaledY - this.height;
                         this.velocityY = 0;
                         this.isJumping = false;
                         onGround = true;
@@ -622,23 +649,35 @@
                 for (let i = collectibles.length - 1; i >= 0; i--) {
                     const collectible = collectibles[i];
                     
+                    // Get scaled collectible coordinates
+                    const scaleX = canvas.width / 800;
+                    const scaleY = canvas.height / 450;
+                    
+                    const scaledX = collectible.x * scaleX;
+                    const scaledY = collectible.y * scaleY;
+                    const scaledWidth = collectible.width * scaleX;
+                    const scaledHeight = collectible.height * scaleY;
+                    
+                    // Check collision
                     if (
-                        this.x < collectible.x + collectible.width &&
-                        this.x + this.width > collectible.x &&
-                        this.y < collectible.y + collectible.height &&
-                        this.y + this.height > collectible.y
+                        this.x < scaledX + scaledWidth &&
+                        this.x + this.width > scaledX &&
+                        this.y < scaledY + scaledHeight &&
+                        this.y + this.height > scaledY
                     ) {
                         // Handle collectible effect
                         if (collectible.type === 'flame') {
                             gameState.updateScore(collectible.value);
                             this.flameSize = Math.min(100, this.flameSize + 20);
                             collectedSomething = true;
+                            debugLog("Collected flame");
                         } else if (collectible.type === 'powerup') {
                             this.invincible = true;
                             setTimeout(() => {
                                 this.invincible = false;
                             }, 3000);
                             collectedSomething = true;
+                            debugLog("Collected powerup");
                         }
                         
                         // Remove collectible
@@ -651,16 +690,27 @@
             
             checkObstacleCollisions(obstacles) {
                 for (const obstacle of obstacles) {
+                    // Get scaled obstacle coordinates
+                    const scaleX = canvas.width / 800;
+                    const scaleY = canvas.height / 450;
+                    
+                    const scaledX = obstacle.x * scaleX;
+                    const scaledY = obstacle.y * scaleY;
+                    const scaledWidth = obstacle.width * scaleX;
+                    const scaledHeight = obstacle.height * scaleY;
+                    
+                    // Check collision
                     if (
-                        this.x < obstacle.x + obstacle.width &&
-                        this.x + this.width > obstacle.x &&
-                        this.y < obstacle.y + obstacle.height &&
-                        this.y + this.height > obstacle.y
+                        this.x < scaledX + scaledWidth &&
+                        this.x + this.width > scaledX &&
+                        this.y < scaledY + scaledHeight &&
+                        this.y + this.height > scaledY
                     ) {
                         if (!this.invincible) {
                             // Handle collision with obstacle
                             this.flameSize = Math.max(0, this.flameSize - 20);
                             this.invincible = true;
+                            debugLog("Hit obstacle");
                             
                             // Temporary invincibility
                             setTimeout(() => {
@@ -677,8 +727,9 @@
             
             resetPosition() {
                 this.x = 100;
-                this.y = 350;
+                this.y = 300; // Start higher
                 this.velocityY = 0;
+                debugLog("Player position reset");
             },
             
             reset() {
@@ -687,6 +738,7 @@
                 this.isJumping = false;
                 this.flameSize = 100;
                 this.invincible = false;
+                debugLog("Player fully reset");
             }
         };
         
@@ -753,7 +805,7 @@
         
         // Create backup of original collectibles
         levels.forEach(level => {
-            level.originalCollectibles = [...level.collectibles];
+            level.originalCollectibles = JSON.parse(JSON.stringify(level.collectibles));
         });
         
         // Canvas and context
@@ -762,6 +814,8 @@
         
         // Initialization
         function init() {
+            debugLog("Initializing game...");
+            
             // Setup canvas
             canvas = document.getElementById('gameCanvas');
             if (!canvas) {
@@ -791,7 +845,7 @@
                 drawMenuBackground();
             });
             
-            log("Game initialized");
+            debugLog("Game initialized");
         }
         
         // Resize canvas to fit container
@@ -800,7 +854,7 @@
             if (container) {
                 canvas.width = container.clientWidth;
                 canvas.height = container.clientHeight;
-                log(`Canvas resized to ${canvas.width}x${canvas.height}`);
+                debugLog(`Canvas resized to ${canvas.width}x${canvas.height}`);
             }
         }
         
@@ -826,7 +880,7 @@
                 // Window resize
                 window.addEventListener('resize', resizeCanvas);
                 
-                log("Input handlers set up");
+                debugLog("Input handlers set up");
             } catch (error) {
                 showError("Error setting up input handlers: " + error.message);
             }
@@ -846,82 +900,86 @@
                 // Initially hide controls
                 document.getElementById('controls').style.display = 'none';
                 
-                // Joystick controls
+                // Joystick controls - improved for mobile
                 let joystickActive = false;
-                let joystickCenterX, joystickCenterY;
                 
-                joystickContainer.addEventListener('touchstart', (e) => {
+                joystickContainer.addEventListener('touchstart', handleJoystickTouch);
+                joystickContainer.addEventListener('touchmove', handleJoystickTouch);
+                joystickContainer.addEventListener('touchend', handleJoystickEnd);
+                
+                function handleJoystickTouch(e) {
                     e.preventDefault();
-                    const touch = e.touches[0];
-                    const rect = joystickContainer.getBoundingClientRect();
-                    joystickCenterX = rect.left + rect.width / 2;
-                    joystickCenterY = rect.top + rect.height / 2;
-                    
                     joystickActive = true;
                     
-                    updateJoystick(touch.clientX, touch.clientY);
-                });
-                
-                joystickContainer.addEventListener('touchmove', (e) => {
-                    if (!joystickActive) return;
-                    e.preventDefault();
-                    
                     const touch = e.touches[0];
-                    updateJoystick(touch.clientX, touch.clientY);
-                });
-                
-                function updateJoystick(touchX, touchY) {
-                    const dx = touchX - joystickCenterX;
-                    const maxDistance = joystickContainer.clientWidth / 3;
+                    const rect = joystickContainer.getBoundingClientRect();
                     
-                    // Calculate normalized distance (0 to 1)
-                    const distance = Math.min(Math.abs(dx) / maxDistance, 1);
+                    // Calculate center of joystick container
+                    const centerX = rect.left + rect.width/2;
+                    const centerY = rect.top + rect.height/2;
                     
-                    // Determine direction
-                    if (dx < -10) {
-                        gameState.keys.left = true;
-                        gameState.keys.right = false;
+                    // Calculate touch position relative to center
+                    const touchX = touch.clientX - centerX;
+                    const touchY = touch.clientY - centerY;
+                    
+                    // Calculate distance from center
+                    const distance = Math.sqrt(touchX * touchX + touchY * touchY);
+                    const maxDistance = rect.width/2 - joystick.clientWidth/2;
+                    
+                    // If touch is within joystick container radius
+                    if (distance <= rect.width/2) {
+                        // Normalize position within maxDistance
+                        const normDistance = Math.min(distance, maxDistance);
+                        const angle = Math.atan2(touchY, touchX);
                         
-                        // Move joystick visually
-                        const moveX = Math.max(-maxDistance, dx);
-                        joystick.style.transform = `translate(calc(-50% + ${moveX}px), -50%)`;
-                    } else if (dx > 10) {
-                        gameState.keys.right = true;
-                        gameState.keys.left = false;
+                        // Calculate joystick position
+                        const moveX = normDistance * Math.cos(angle);
+                        const moveY = normDistance * Math.sin(angle);
                         
-                        // Move joystick visually
-                        const moveX = Math.min(maxDistance, dx);
-                        joystick.style.transform = `translate(calc(-50% + ${moveX}px), -50%)`;
-                    } else {
-                        gameState.keys.left = false;
-                        gameState.keys.right = false;
-                        joystick.style.transform = 'translate(-50%, -50%)';
+                        // Move joystick
+                        joystick.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+                        
+                        // Set direction based on horizontal movement
+                        if (touchX < -10) {
+                            gameState.keys.left = true;
+                            gameState.keys.right = false;
+                            debugLog("Touch: Moving left");
+                        } else if (touchX > 10) {
+                            gameState.keys.right = true;
+                            gameState.keys.left = false;
+                            debugLog("Touch: Moving right");
+                        } else {
+                            gameState.keys.left = false;
+                            gameState.keys.right = false;
+                        }
                     }
                 }
                 
-                window.addEventListener('touchend', (e) => {
-                    if (joystickActive) {
-                        joystickActive = false;
-                        gameState.keys.left = false;
-                        gameState.keys.right = false;
-                        joystick.style.transform = 'translate(-50%, -50%)';
-                    }
-                });
+                function handleJoystickEnd(e) {
+                    e.preventDefault();
+                    joystickActive = false;
+                    gameState.keys.left = false;
+                    gameState.keys.right = false;
+                    joystick.style.transform = 'translate(-50%, -50%)';
+                    debugLog("Touch: Joystick released");
+                }
                 
                 // Jump button controls
-                jumpBtn.addEventListener('touchstart', (e) => {
+                jumpBtn.addEventListener('touchstart', function(e) {
                     e.preventDefault();
                     gameState.keys.up = true;
                     jumpBtn.style.backgroundColor = 'rgba(255,255,255,0.5)';
+                    debugLog("Touch: Jump pressed");
                 });
                 
-                jumpBtn.addEventListener('touchend', (e) => {
+                jumpBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
                     gameState.keys.up = false;
                     jumpBtn.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                    debugLog("Touch: Jump released");
                 });
                 
-                log("Touch controls set up");
+                debugLog("Touch controls set up");
             } catch (error) {
                 showError("Error setting up touch controls: " + error.message);
             }
@@ -946,7 +1004,7 @@
                     startGame();
                 });
                 
-                log("Buttons set up");
+                debugLog("Buttons set up");
             } catch (error) {
                 showError("Error setting up buttons: " + error.message);
             }
@@ -1004,7 +1062,7 @@
         // Game management
         function startGame() {
             try {
-                log("Starting game");
+                debugLog("Starting game");
                 
                 // Reset game state
                 gameState.reset();
@@ -1014,7 +1072,7 @@
                 
                 // Reset levels and collectibles
                 levels.forEach(level => {
-                    level.collectibles = [...level.originalCollectibles];
+                    level.collectibles = JSON.parse(JSON.stringify(level.originalCollectibles));
                 });
                 
                 // Hide menu and game over, show game screen
@@ -1031,6 +1089,11 @@
                     cancelAnimationFrame(gameLoopId);
                 }
                 
+                // Make sure debug info is visible in debug mode
+                if (DEBUG_MODE) {
+                    document.getElementById('debugInfo').style.display = 'block';
+                }
+                
                 gameLoopId = requestAnimationFrame(gameLoop);
                 
                 // Hide controls info after 5 seconds
@@ -1041,7 +1104,7 @@
                     }
                 }, 5000);
                 
-                log("Game started successfully");
+                debugLog("Game started successfully");
             } catch (error) {
                 showError("Error starting game: " + error.message);
             }
@@ -1049,6 +1112,8 @@
         
         function endGame() {
             try {
+                debugLog("Game ending");
+                
                 // Stop game loop
                 if (gameLoopId) {
                     cancelAnimationFrame(gameLoopId);
@@ -1068,7 +1133,10 @@
                 // Show game over screen
                 document.getElementById('gameOverlay').style.display = 'flex';
                 
-                log("Game ended with score: " + gameState.score);
+                // Hide controls
+                document.getElementById('controls').style.display = 'none';
+                
+                debugLog("Game ended with score: " + gameState.score);
             } catch (error) {
                 showError("Error ending game: " + error.message);
             }
@@ -1078,7 +1146,7 @@
             try {
                 // Increase level counter
                 gameState.currentLevel++;
-                log("Advancing to level: " + gameState.currentLevel);
+                debugLog("Advancing to level: " + gameState.currentLevel);
                 
                 // Check if all levels are complete
                 if (gameState.currentLevel >= levels.length) {
@@ -1097,7 +1165,7 @@
                 const levelName = levels[gameState.currentLevel].name;
                 showLevelMessage(`Level ${gameState.currentLevel + 1}: ${levelName}`);
                 
-                log("Advanced to level " + gameState.currentLevel);
+                debugLog("Advanced to level " + gameState.currentLevel);
             } catch (error) {
                 showError("Error advancing level: " + error.message);
             }
@@ -1365,11 +1433,9 @@
             ctx.fillText(`Score: ${gameState.score}`, 20, 30);
             ctx.fillText(`Lives: ${gameState.lives}`, 20, 60);
             
-            // Draw level name
+            // Draw level name and flames
             ctx.textAlign = 'center';
             ctx.fillText(level.name, canvas.width/2, 30);
-            
-            // Draw flame count
             ctx.fillText(`Flames: ${level.collectibles.length}`, canvas.width/2, 60);
             ctx.textAlign = 'left';
             
@@ -1389,7 +1455,10 @@
         
         // Game loop
         function gameLoop() {
-            if (!gameState.gameActive) return;
+            if (!gameState.gameActive) {
+                gameState.gameActive = true; // Set active flag
+                debugLog("Game loop started");
+            }
             
             try {
                 // Clear canvas
@@ -1401,16 +1470,6 @@
                     throw new Error("Level not found: " + gameState.currentLevel);
                 }
                 
-                // Calculate scale factors
-                const scaleX = canvas.width / 800;
-                const scaleY = canvas.height / 450;
-                
-                // Apply scaling to player
-                player.width = 20 * scaleX;
-                player.height = 40 * scaleY;
-                player.speed = 5 * scaleX;
-                player.jumpForce = 12 * scaleY;
-                
                 // Draw background
                 drawBackground(currentLevel);
                 
@@ -1419,11 +1478,14 @@
                 drawObstacles(currentLevel.obstacles);
                 drawCollectibles(currentLevel.collectibles);
                 
+                // Check platform collisions and update player
+                const onGround = player.checkPlatformCollisions(currentLevel.platforms);
+                debugLog(`Player state: x=${Math.round(player.x)}, y=${Math.round(player.y)}, onGround=${onGround}, flame=${Math.round(player.flameSize)}`);
+                
                 // Update player
                 player.update();
                 
                 // Check collisions
-                player.checkPlatformCollisions(currentLevel.platforms);
                 player.checkObstacleCollisions(currentLevel.obstacles);
                 
                 if (player.checkCollectibleCollisions(currentLevel.collectibles)) {
