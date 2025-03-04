@@ -258,8 +258,8 @@
         
         #debugInfo {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
+            top: 70px;
+            right: 10px;
             background: rgba(0,0,0,0.7);
             color: white;
             padding: 5px;
@@ -267,6 +267,9 @@
             font-size: 10px;
             z-index: 100;
             display: none;
+            max-width: 200px;
+            max-height: 100px;
+            overflow: auto;
         }
     </style>
 </head>
@@ -315,7 +318,7 @@
 
     <script>
         // Debug mode
-        const DEBUG_MODE = true;
+        const DEBUG_MODE = false;
         
         function debugLog(message) {
             if (DEBUG_MODE) {
@@ -368,7 +371,7 @@
         // Player object
         const player = {
             x: 100,
-            y: 300, // Start higher to avoid falling immediately
+            y: 380, // Start directly on a platform 
             width: 20,
             height: 40,
             velocityX: 0,
@@ -727,7 +730,7 @@
             
             resetPosition() {
                 this.x = 100;
-                this.y = 300; // Start higher
+                this.y = 380; // Place directly on platform
                 this.velocityY = 0;
                 debugLog("Player position reset");
             },
@@ -1070,6 +1073,10 @@
                 // Reset player
                 player.reset();
                 
+                // Calculate the platform Y position with scaling
+                const firstPlatformY = levels[0].platforms[0].y * (canvas.height / 450) - player.height;
+                player.y = firstPlatformY; // Position player directly on the first platform
+                
                 // Reset levels and collectibles
                 levels.forEach(level => {
                     level.collectibles = JSON.parse(JSON.stringify(level.originalCollectibles));
@@ -1089,10 +1096,8 @@
                     cancelAnimationFrame(gameLoopId);
                 }
                 
-                // Make sure debug info is visible in debug mode
-                if (DEBUG_MODE) {
-                    document.getElementById('debugInfo').style.display = 'block';
-                }
+                // Make sure debug info is hidden
+                document.getElementById('debugInfo').style.display = 'none';
                 
                 gameLoopId = requestAnimationFrame(gameLoop);
                 
@@ -1458,6 +1463,9 @@
             if (!gameState.gameActive) {
                 gameState.gameActive = true; // Set active flag
                 debugLog("Game loop started");
+                
+                // Force check platform collision on first frame
+                player.checkPlatformCollisions(levels[gameState.currentLevel].platforms);
             }
             
             try {
