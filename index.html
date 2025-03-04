@@ -144,7 +144,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 20;
+            z-index: 30; /* Higher z-index to ensure it's on top */
             color: white;
             border-radius: 12px;
         }
@@ -152,11 +152,30 @@
         #gameOverlay h1 {
             font-size: 6vmin;
             margin-bottom: 1vmin;
+            text-shadow: 0 0 10px rgba(255, 50, 0, 0.8);
         }
         
         #finalScore, #finalLevel {
             font-size: 4vmin;
             margin: 2vmin 0;
+        }
+        
+        #restartButton {
+            padding: 15px 30px;
+            font-size: 4vmin;
+            background: linear-gradient(to right, #ff4500, #ff8c00);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 15px 0;
+            width: 60%;
+            max-width: 200px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 69, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            z-index: 31; /* Make sure the button is clickable */
         }
         
         #controls {
@@ -417,15 +436,14 @@
                 // Check for falling off the bottom
                 if (this.y > canvas.height) {
                     debugLog("Player fell off bottom");
-                    this.y = canvas.height - this.height;
-                    this.velocityY = 0;
+                    
                     gameState.lives--;
                     
                     if (gameState.lives <= 0) {
                         debugLog("No lives left - ending game");
                         endGame();
                     } else {
-                        // Reset player position
+                        // Reset player position to start of level
                         this.resetPosition();
                     }
                 }
@@ -627,13 +645,13 @@
                     const scaledWidth = platform.width * scaleX;
                     const scaledHeight = platform.height * scaleY;
                     
-                    // Check collision
+                    // Improved collision detection with better tolerance
                     if (
                         this.x + this.width > scaledX &&
                         this.x < scaledX + scaledWidth &&
-                        this.y + this.height > scaledY &&
-                        this.y + this.height < scaledY + 10 && // Check only the top edge
-                        this.velocityY > 0
+                        this.y + this.height > scaledY - 5 &&  // Added tolerance
+                        this.y + this.height < scaledY + scaledHeight/2 && // Check only upper half
+                        this.velocityY > 0  // Only detect when falling
                     ) {
                         this.y = scaledY - this.height;
                         this.velocityY = 0;
@@ -1140,6 +1158,27 @@
                 
                 // Hide controls
                 document.getElementById('controls').style.display = 'none';
+                
+                // Make restart button more noticeable
+                const restartButton = document.getElementById('restartButton');
+                if (restartButton) {
+                    restartButton.style.animation = 'pulse 1.5s infinite';
+                    restartButton.style.boxShadow = '0 0 20px rgba(255, 69, 0, 0.7)';
+                }
+                
+                // Add a pulse animation if it doesn't exist
+                if (!document.getElementById('pulse-animation')) {
+                    const style = document.createElement('style');
+                    style.id = 'pulse-animation';
+                    style.textContent = `
+                        @keyframes pulse {
+                            0% { transform: scale(1); }
+                            50% { transform: scale(1.1); }
+                            100% { transform: scale(1); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
                 
                 debugLog("Game ended with score: " + gameState.score);
             } catch (error) {
