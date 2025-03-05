@@ -290,6 +290,100 @@
             max-height: 100px;
             overflow: auto;
         }
+        
+        /* Victory overlay styling */
+        #victoryOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.3), rgba(30,30,60,0.8));
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 35; /* Higher than game over overlay */
+            color: white;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        #victoryOverlay h1 {
+            font-size: 7vmin;
+            margin: 0 0 2vmin 0;
+            color: gold;
+            text-shadow: 0 0 10px orange, 0 0 20px red;
+            animation: victoryGlow 2s infinite alternate;
+        }
+        
+        @keyframes victoryGlow {
+            0% { text-shadow: 0 0 10px orange, 0 0 20px red; }
+            100% { text-shadow: 0 0 20px orange, 0 0 40px red, 0 0 60px yellow; }
+        }
+        
+        #victoryMessage {
+            font-size: 4vmin;
+            max-width: 80%;
+            margin: 2vmin 0;
+            line-height: 1.4;
+        }
+        
+        #finalVictoryScore {
+            font-size: 5vmin;
+            margin: 2vmin 0;
+            color: gold;
+        }
+        
+        #victoryRestartButton {
+            padding: 15px 30px;
+            font-size: 4vmin;
+            background: linear-gradient(to right, gold, orange);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 15px 0;
+            width: 60%;
+            max-width: 200px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.5);
+            position: relative;
+            z-index: 36;
+            animation: victoryButtonPulse 2s infinite alternate;
+        }
+        
+        @keyframes victoryButtonPulse {
+            0% { transform: scale(1); box-shadow: 0 5px 15px rgba(255, 215, 0, 0.5); }
+            100% { transform: scale(1.05); box-shadow: 0 5px 25px rgba(255, 215, 0, 0.8); }
+        }
+        
+        .victory-flames {
+            position: absolute;
+            width: 100%;
+            height: 100px;
+            bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            z-index: -1;
+        }
+        
+        .victory-flame {
+            width: 40px;
+            height: 80px;
+            background: radial-gradient(ellipse at bottom, yellow, orange, red);
+            border-radius: 50% 50% 20% 20% / 40% 40% 60% 60%;
+            filter: blur(2px);
+            animation: victoryFlame 3s infinite alternate;
+            transform-origin: center bottom;
+            opacity: 0.7;
+        }
+        
+        @keyframes victoryFlame {
+            0% { height: 60px; opacity: 0.6; }
+            50% { height: 90px; opacity: 0.8; }
+            100% { height: 70px; opacity: 0.7; }
+        }
     </style>
 </head>
 <body>
@@ -317,6 +411,21 @@
             <p id="finalScore">Score: 0</p>
             <p id="finalLevel">Level: 1</p>
             <button id="restartButton">RESTART</button>
+        </div>
+        
+        <!-- Victory overlay for game completion -->
+        <div id="victoryOverlay">
+            <h1>GAME COMPLETED!</h1>
+            <p id="victoryMessage">You've mastered all levels and become the true Flame Walker!</p>
+            <p id="finalVictoryScore">Final Score: 0</p>
+            <button id="victoryRestartButton">PLAY AGAIN</button>
+            <div class="victory-flames">
+                <div class="victory-flame" style="animation-delay: 0.2s"></div>
+                <div class="victory-flame" style="animation-delay: 0.5s"></div>
+                <div class="victory-flame" style="animation-delay: 0.8s"></div>
+                <div class="victory-flame" style="animation-delay: 1.1s"></div>
+                <div class="victory-flame" style="animation-delay: 1.4s"></div>
+            </div>
         </div>
 
         <div id="controls">
@@ -376,6 +485,39 @@
             
             updateScore(points) {
                 this.score += points;
+            },
+            
+            // Add the missing saveHighScore method
+            saveHighScore() {
+                try {
+                    // Create a score entry
+                    const scoreEntry = {
+                        score: this.score,
+                        level: this.currentLevel + 1,
+                        date: new Date().toLocaleDateString()
+                    };
+                    
+                    // Add to high scores
+                    this.highScores.push(scoreEntry);
+                    
+                    // Sort high scores (highest first)
+                    this.highScores.sort((a, b) => b.score - a.score);
+                    
+                    // Keep only top 5
+                    if (this.highScores.length > 5) {
+                        this.highScores = this.highScores.slice(0, 5);
+                    }
+                    
+                    // Save to localStorage
+                    localStorage.setItem('flameWalkerScores', JSON.stringify(this.highScores));
+                    
+                    // Update displayed high scores
+                    displayHighScores();
+                    
+                    debugLog("High score saved: " + this.score);
+                } catch (error) {
+                    showError("Error saving high score: " + error.message);
+                }
             },
             
             reset() {
@@ -694,11 +836,17 @@
                             debugLog("Collected flame");
                         } else if (collectible.type === 'powerup') {
                             this.invincible = true;
+                            gameState.updateScore(collectible.value || 30);
                             setTimeout(() => {
                                 this.invincible = false;
                             }, 3000);
                             collectedSomething = true;
                             debugLog("Collected powerup");
+                        } else if (collectible.type === 'superflame') {
+                            gameState.updateScore(collectible.value || 50);
+                            this.flameSize = 100; // Full flame
+                            collectedSomething = true;
+                            debugLog("Collected superflame");
                         }
                         
                         // Remove collectible
@@ -763,7 +911,7 @@
             }
         };
         
-        // Level definitions
+        // Level definitions - Extended to 10 levels
         const levels = [
             {
                 name: "Forest Path",
@@ -820,6 +968,229 @@
                     { x: 220, y: 340, width: 20, height: 20, type: 'flame', value: 20 },
                     { x: 390, y: 310, width: 20, height: 20, type: 'flame', value: 20 },
                     { x: 560, y: 280, width: 20, height: 20, type: 'flame', value: 20 }
+                ]
+            },
+            // New levels added
+            {
+                name: "Cave Depths",
+                backgroundColor1: "#2C3E50",  // Dark blue
+                backgroundColor2: "#34495E",  // Slightly lighter dark blue
+                platforms: [
+                    { x: 0, y: 400, width: 100, height: 20 },
+                    { x: 160, y: 350, width: 100, height: 20 },
+                    { x: 320, y: 380, width: 100, height: 20 },
+                    { x: 480, y: 330, width: 100, height: 20 },
+                    { x: 640, y: 290, width: 100, height: 20 }
+                ],
+                obstacles: [
+                    { x: 200, y: 290, width: 30, height: 60, type: 'stalactite' },
+                    { x: 400, y: 270, width: 30, height: 60, type: 'stalactite' },
+                    { x: 600, y: 230, width: 30, height: 60, type: 'stalactite' }
+                ],
+                collectibles: [
+                    { x: 180, y: 320, width: 20, height: 20, type: 'flame', value: 25 },
+                    { x: 350, y: 350, width: 20, height: 20, type: 'flame', value: 25 },
+                    { x: 510, y: 300, width: 20, height: 20, type: 'flame', value: 25 },
+                    { x: 670, y: 260, width: 20, height: 20, type: 'powerup', value: 30 }
+                ]
+            },
+            {
+                name: "Ice Peak",
+                backgroundColor1: "#E0FFFF",  // Light cyan
+                backgroundColor2: "#B0E0E6",  // Powder blue
+                platforms: [
+                    { x: 0, y: 400, width: 120, height: 10 },
+                    { x: 180, y: 370, width: 120, height: 10 },
+                    { x: 360, y: 340, width: 120, height: 10 },
+                    { x: 540, y: 310, width: 120, height: 10 },
+                    { x: 720, y: 280, width: 80, height: 10 }
+                ],
+                obstacles: [
+                    { x: 100, y: 380, width: 70, height: 15, type: 'ice' },
+                    { x: 280, y: 350, width: 70, height: 15, type: 'ice' },
+                    { x: 460, y: 320, width: 70, height: 15, type: 'ice' },
+                    { x: 640, y: 290, width: 70, height: 15, type: 'ice' }
+                ],
+                collectibles: [
+                    { x: 70, y: 370, width: 20, height: 20, type: 'flame', value: 30 },
+                    { x: 250, y: 340, width: 20, height: 20, type: 'flame', value: 30 },
+                    { x: 430, y: 310, width: 20, height: 20, type: 'flame', value: 30 },
+                    { x: 610, y: 280, width: 20, height: 20, type: 'flame', value: 30 },
+                    { x: 740, y: 250, width: 20, height: 20, type: 'superflame', value: 50 }
+                ]
+            },
+            {
+                name: "Volcanic Summit",
+                backgroundColor1: "#8B0000",  // Dark red
+                backgroundColor2: "#FF4500",  // Orange red
+                platforms: [
+                    { x: 0, y: 400, width: 100, height: 20 },
+                    { x: 160, y: 360, width: 100, height: 20 },
+                    { x: 320, y: 330, width: 100, height: 20 },
+                    { x: 480, y: 290, width: 100, height: 20 },
+                    { x: 640, y: 250, width: 100, height: 20 },
+                    { x: 480, y: 200, width: 80, height: 20 },
+                    { x: 320, y: 160, width: 80, height: 20 }
+                ],
+                obstacles: [
+                    { x: 130, y: 380, width: 30, height: 20, type: 'lava' },
+                    { x: 290, y: 340, width: 30, height: 20, type: 'lava' },
+                    { x: 450, y: 310, width: 30, height: 20, type: 'lava' },
+                    { x: 610, y: 270, width: 30, height: 20, type: 'lava' },
+                    { x: 450, y: 220, width: 30, height: 20, type: 'lava' }
+                ],
+                collectibles: [
+                    { x: 60, y: 370, width: 20, height: 20, type: 'flame', value: 35 },
+                    { x: 220, y: 330, width: 20, height: 20, type: 'flame', value: 35 },
+                    { x: 380, y: 300, width: 20, height: 20, type: 'flame', value: 35 },
+                    { x: 540, y: 260, width: 20, height: 20, type: 'flame', value: 35 },
+                    { x: 700, y: 220, width: 20, height: 20, type: 'flame', value: 35 },
+                    { x: 540, y: 170, width: 20, height: 20, type: 'powerup', value: 40 },
+                    { x: 380, y: 130, width: 20, height: 20, type: 'superflame', value: 50 }
+                ]
+            },
+            {
+                name: "Ancient Temple",
+                backgroundColor1: "#704214",  // Brown
+                backgroundColor2: "#8B4513",  // SaddleBrown
+                platforms: [
+                    { x: 0, y: 400, width: 120, height: 20 },
+                    { x: 180, y: 350, width: 120, height: 20 },
+                    { x: 360, y: 400, width: 120, height: 20 },
+                    { x: 540, y: 350, width: 120, height: 20 },
+                    { x: 720, y: 300, width: 80, height: 20 },
+                    { x: 540, y: 250, width: 120, height: 20 },
+                    { x: 360, y: 200, width: 120, height: 20 },
+                    { x: 180, y: 150, width: 120, height: 20 }
+                ],
+                obstacles: [
+                    { x: 150, y: 380, width: 20, height: 40, type: 'spike' },
+                    { x: 330, y: 380, width: 20, height: 40, type: 'spike' },
+                    { x: 510, y: 330, width: 20, height: 40, type: 'spike' },
+                    { x: 690, y: 280, width: 20, height: 40, type: 'spike' },
+                    { x: 510, y: 230, width: 20, height: 40, type: 'spike' },
+                    { x: 330, y: 180, width: 20, height: 40, type: 'spike' }
+                ],
+                collectibles: [
+                    { x: 60, y: 370, width: 20, height: 20, type: 'flame', value: 40 },
+                    { x: 240, y: 320, width: 20, height: 20, type: 'flame', value: 40 },
+                    { x: 420, y: 370, width: 20, height: 20, type: 'flame', value: 40 },
+                    { x: 600, y: 320, width: 20, height: 20, type: 'flame', value: 40 },
+                    { x: 750, y: 270, width: 20, height: 20, type: 'powerup', value: 50 },
+                    { x: 600, y: 220, width: 20, height: 20, type: 'flame', value: 40 },
+                    { x: 420, y: 170, width: 20, height: 20, type: 'flame', value: 40 },
+                    { x: 240, y: 120, width: 20, height: 20, type: 'superflame', value: 60 }
+                ]
+            },
+            {
+                name: "Crystal Cavern",
+                backgroundColor1: "#191970",  // MidnightBlue
+                backgroundColor2: "#483D8B",  // DarkSlateBlue
+                platforms: [
+                    { x: 0, y: 400, width: 100, height: 20 },
+                    { x: 150, y: 350, width: 100, height: 20 },
+                    { x: 300, y: 300, width: 100, height: 20 },
+                    { x: 450, y: 250, width: 100, height: 20 },
+                    { x: 600, y: 200, width: 100, height: 20 },
+                    { x: 450, y: 150, width: 100, height: 20 },
+                    { x: 300, y: 100, width: 100, height: 20 }
+                ],
+                obstacles: [
+                    { x: 120, y: 380, width: 30, height: 40, type: 'crystal' },
+                    { x: 270, y: 330, width: 30, height: 40, type: 'crystal' },
+                    { x: 420, y: 280, width: 30, height: 40, type: 'crystal' },
+                    { x: 570, y: 230, width: 30, height: 40, type: 'crystal' },
+                    { x: 420, y: 180, width: 30, height: 40, type: 'crystal' }
+                ],
+                collectibles: [
+                    { x: 50, y: 370, width: 20, height: 20, type: 'flame', value: 45 },
+                    { x: 200, y: 320, width: 20, height: 20, type: 'flame', value: 45 },
+                    { x: 350, y: 270, width: 20, height: 20, type: 'flame', value: 45 },
+                    { x: 500, y: 220, width: 20, height: 20, type: 'flame', value: 45 },
+                    { x: 650, y: 170, width: 20, height: 20, type: 'powerup', value: 60 },
+                    { x: 500, y: 120, width: 20, height: 20, type: 'superflame', value: 70 },
+                    { x: 350, y: 70, width: 20, height: 20, type: 'superflame', value: 80 }
+                ]
+            },
+            {
+                name: "Sky Islands",
+                backgroundColor1: "#00BFFF",  // DeepSkyBlue
+                backgroundColor2: "#87CEEB",  // SkyBlue
+                platforms: [
+                    { x: 0, y: 400, width: 100, height: 20 },
+                    { x: 160, y: 350, width: 80, height: 20 },
+                    { x: 300, y: 380, width: 80, height: 20 },
+                    { x: 440, y: 330, width: 80, height: 20 },
+                    { x: 580, y: 360, width: 80, height: 20 },
+                    { x: 720, y: 310, width: 80, height: 20 },
+                    { x: 580, y: 260, width: 80, height: 20 },
+                    { x: 440, y: 210, width: 80, height: 20 },
+                    { x: 300, y: 160, width: 80, height: 20 },
+                    { x: 160, y: 110, width: 80, height: 20 }
+                ],
+                obstacles: [
+                    { x: 130, y: 380, width: 30, height: 20, type: 'cloud' },
+                    { x: 270, y: 360, width: 30, height: 20, type: 'cloud' },
+                    { x: 410, y: 310, width: 30, height: 20, type: 'cloud' },
+                    { x: 550, y: 340, width: 30, height: 20, type: 'cloud' },
+                    { x: 690, y: 290, width: 30, height: 20, type: 'cloud' },
+                    { x: 550, y: 240, width: 30, height: 20, type: 'cloud' },
+                    { x: 410, y: 190, width: 30, height: 20, type: 'cloud' },
+                    { x: 270, y: 140, width: 30, height: 20, type: 'cloud' }
+                ],
+                collectibles: [
+                    { x: 50, y: 370, width: 20, height: 20, type: 'flame', value: 50 },
+                    { x: 200, y: 320, width: 20, height: 20, type: 'flame', value: 50 },
+                    { x: 340, y: 350, width: 20, height: 20, type: 'flame', value: 50 },
+                    { x: 480, y: 300, width: 20, height: 20, type: 'flame', value: 50 },
+                    { x: 620, y: 330, width: 20, height: 20, type: 'flame', value: 50 },
+                    { x: 760, y: 280, width: 20, height: 20, type: 'flame', value: 50 },
+                    { x: 620, y: 230, width: 20, height: 20, type: 'powerup', value: 70 },
+                    { x: 480, y: 180, width: 20, height: 20, type: 'flame', value: 50 },
+                    { x: 340, y: 130, width: 20, height: 20, type: 'superflame', value: 80 },
+                    { x: 200, y: 80, width: 20, height: 20, type: 'superflame', value: 100 }
+                ]
+            },
+            {
+                name: "Flame Core",
+                backgroundColor1: "#800000",  // Maroon
+                backgroundColor2: "#8B0000",  // DarkRed
+                platforms: [
+                    { x: 0, y: 400, width: 80, height: 15 },
+                    { x: 140, y: 370, width: 80, height: 15 },
+                    { x: 280, y: 340, width: 80, height: 15 },
+                    { x: 420, y: 310, width: 80, height: 15 },
+                    { x: 560, y: 280, width: 80, height: 15 },
+                    { x: 700, y: 250, width: 80, height: 15 },
+                    { x: 560, y: 220, width: 80, height: 15 },
+                    { x: 420, y: 190, width: 80, height: 15 },
+                    { x: 280, y: 160, width: 80, height: 15 },
+                    { x: 140, y: 130, width: 80, height: 15 },
+                    { x: 0, y: 100, width: 80, height: 15 }
+                ],
+                obstacles: [
+                    { x: 100, y: 385, width: 40, height: 15, type: 'lava' },
+                    { x: 240, y: 355, width: 40, height: 15, type: 'lava' },
+                    { x: 380, y: 325, width: 40, height: 15, type: 'lava' },
+                    { x: 520, y: 295, width: 40, height: 15, type: 'lava' },
+                    { x: 660, y: 265, width: 40, height: 15, type: 'lava' },
+                    { x: 520, y: 235, width: 40, height: 15, type: 'lava' },
+                    { x: 380, y: 205, width: 40, height: 15, type: 'lava' },
+                    { x: 240, y: 175, width: 40, height: 15, type: 'lava' },
+                    { x: 100, y: 145, width: 40, height: 15, type: 'lava' }
+                ],
+                collectibles: [
+                    { x: 40, y: 370, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 180, y: 340, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 320, y: 310, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 460, y: 280, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 600, y: 250, width: 20, height: 20, type: 'powerup', value: 80 },
+                    { x: 740, y: 220, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 600, y: 190, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 460, y: 160, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 320, y: 130, width: 20, height: 20, type: 'flame', value: 60 },
+                    { x: 180, y: 100, width: 20, height: 20, type: 'superflame', value: 100 },
+                    { x: 40, y: 70, width: 20, height: 20, type: 'superflame', value: 200 }
                 ]
             }
         ];
@@ -1025,6 +1396,16 @@
                     startGame();
                 });
                 
+                // Victory restart button
+                const victoryRestartButton = document.getElementById('victoryRestartButton');
+                if (victoryRestartButton) {
+                    victoryRestartButton.addEventListener('click', startGame);
+                    victoryRestartButton.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                        startGame();
+                    });
+                }
+                
                 debugLog("Buttons set up");
             } catch (error) {
                 showError("Error setting up buttons: " + error.message);
@@ -1100,9 +1481,10 @@
                     level.collectibles = JSON.parse(JSON.stringify(level.originalCollectibles));
                 });
                 
-                // Hide menu and game over, show game screen
+                // Hide all overlays
                 document.getElementById('menuOverlay').style.display = 'none';
                 document.getElementById('gameOverlay').style.display = 'none';
+                document.getElementById('victoryOverlay').style.display = 'none';
                 document.getElementById('controls').style.display = 'flex';
                 document.getElementById('controlsInfo').style.display = 'block';
                 
@@ -1148,22 +1530,33 @@
                 // Save high score
                 gameState.saveHighScore();
                 
-                // Update game over display
-                document.getElementById('gameOverTitle').textContent = "Game Over";
-                document.getElementById('finalScore').textContent = `Score: ${gameState.score}`;
-                document.getElementById('finalLevel').textContent = `Level ${gameState.currentLevel + 1}: ${levels[gameState.currentLevel].name}`;
-                
-                // Show game over screen
-                document.getElementById('gameOverlay').style.display = 'flex';
-                
                 // Hide controls
                 document.getElementById('controls').style.display = 'none';
                 
-                // Make restart button more noticeable
-                const restartButton = document.getElementById('restartButton');
-                if (restartButton) {
-                    restartButton.style.animation = 'pulse 1.5s infinite';
-                    restartButton.style.boxShadow = '0 0 20px rgba(255, 69, 0, 0.7)';
+                // Check if all levels were completed
+                if (gameState.currentLevel >= levels.length) {
+                    // Show victory screen
+                    showVictoryScreen();
+                } else {
+                    // Update game over display
+                    document.getElementById('gameOverTitle').textContent = "Game Over";
+                    
+                    // Make sure we don't go out of bounds
+                    const levelIndex = Math.min(gameState.currentLevel, levels.length - 1);
+                    const levelName = levels[levelIndex].name;
+                    
+                    document.getElementById('finalScore').textContent = `Score: ${gameState.score}`;
+                    document.getElementById('finalLevel').textContent = `Level ${levelIndex + 1}: ${levelName}`;
+                    
+                    // Show game over screen
+                    document.getElementById('gameOverlay').style.display = 'flex';
+                    
+                    // Make restart button more noticeable
+                    const restartButton = document.getElementById('restartButton');
+                    if (restartButton) {
+                        restartButton.style.animation = 'pulse 1.5s infinite';
+                        restartButton.style.boxShadow = '0 0 20px rgba(255, 69, 0, 0.7)';
+                    }
                 }
                 
                 // Add a pulse animation if it doesn't exist
@@ -1186,6 +1579,42 @@
             }
         }
         
+        function showVictoryScreen() {
+            try {
+                // Update victory screen content
+                document.getElementById('finalVictoryScore').textContent = `Final Score: ${gameState.score}`;
+                
+                // Show the victory overlay
+                document.getElementById('victoryOverlay').style.display = 'flex';
+                
+                // Add some celebration effects
+                createVictoryEffects();
+                
+                debugLog("Victory screen shown with score: " + gameState.score);
+            } catch (error) {
+                showError("Error showing victory screen: " + error.message);
+                // Fallback to regular game over screen if there's an error
+                document.getElementById('gameOverlay').style.display = 'flex';
+            }
+        }
+        
+        function createVictoryEffects() {
+            // Create additional flame elements for celebration
+            const victoryFlames = document.querySelector('.victory-flames');
+            if (victoryFlames) {
+                // Clear existing flames
+                victoryFlames.innerHTML = '';
+                
+                // Add new flames
+                for (let i = 0; i < 10; i++) {
+                    const flame = document.createElement('div');
+                    flame.className = 'victory-flame';
+                    flame.style.animationDelay = `${i * 0.2}s`;
+                    victoryFlames.appendChild(flame);
+                }
+            }
+        }
+        
         function advanceLevel() {
             try {
                 // Increase level counter
@@ -1194,8 +1623,10 @@
                 
                 // Check if all levels are complete
                 if (gameState.currentLevel >= levels.length) {
-                    document.getElementById('gameOverTitle').textContent = "You Won!";
-                    endGame();
+                    showLevelMessage("ALL LEVELS COMPLETED!");
+                    setTimeout(() => {
+                        endGame(); // This now shows the victory screen
+                    }, 2000);
                     return;
                 }
                 
@@ -1266,6 +1697,18 @@
                     drawMountainBackground();
                 } else if (level.name.includes("Desert")) {
                     drawDesertBackground();
+                } else if (level.name.includes("Cave")) {
+                    drawCaveBackground();
+                } else if (level.name.includes("Ice")) {
+                    drawIceBackground();
+                } else if (level.name.includes("Volcanic") || level.name.includes("Flame")) {
+                    drawVolcanicBackground();
+                } else if (level.name.includes("Ancient")) {
+                    drawTempleBackground();
+                } else if (level.name.includes("Crystal")) {
+                    drawCrystalBackground();
+                } else if (level.name.includes("Sky")) {
+                    drawSkyBackground();
                 }
             } catch (error) {
                 console.error("Error drawing background:", error);
@@ -1331,6 +1774,218 @@
             ctx.fill();
         }
         
+        function drawCaveBackground() {
+            // Draw stalactites
+            ctx.fillStyle = 'rgba(50, 50, 60, 0.4)';
+            
+            for (let i = 0; i < 8; i++) {
+                const x = i * (canvas.width / 8) + 20;
+                const height = 40 + Math.sin(i * 0.8) * 20;
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 10, 0);
+                ctx.lineTo(x, height);
+                ctx.lineTo(x + 10, 0);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // Draw stalagmites
+            for (let i = 0; i < 5; i++) {
+                const x = i * (canvas.width / 5) + 40;
+                const height = 30 + Math.cos(i * 0.9) * 15;
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 15, canvas.height);
+                ctx.lineTo(x, canvas.height - height);
+                ctx.lineTo(x + 15, canvas.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        
+        function drawIceBackground() {
+            // Draw snow mountains
+            ctx.fillStyle = 'rgba(220, 220, 240, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height - 70);
+            
+            for (let x = 0; x <= canvas.width; x += canvas.width / 8) {
+                const height = Math.sin(x / canvas.width * Math.PI * 2) * 50 + 70;
+                ctx.lineTo(x, canvas.height - height);
+            }
+            
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw ice crystals
+            ctx.fillStyle = 'rgba(200, 240, 255, 0.2)';
+            for (let i = 0; i < 10; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height * 0.6;
+                const size = 5 + Math.random() * 15;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y - size/2);
+                ctx.lineTo(x + size/3, y);
+                ctx.lineTo(x, y + size/2);
+                ctx.lineTo(x - size/3, y);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        
+        function drawVolcanicBackground() {
+            // Draw lava flows
+            const lavaGlow = ctx.createLinearGradient(0, canvas.height - 100, 0, canvas.height);
+            lavaGlow.addColorStop(0, 'rgba(255, 69, 0, 0.1)');
+            lavaGlow.addColorStop(1, 'rgba(255, 0, 0, 0.3)');
+            
+            ctx.fillStyle = lavaGlow;
+            ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+            
+            // Draw volcano silhouettes
+            ctx.fillStyle = 'rgba(50, 20, 20, 0.4)';
+            
+            // First volcano
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.2, canvas.height);
+            ctx.lineTo(canvas.width * 0.4, canvas.height * 0.4);
+            ctx.lineTo(canvas.width * 0.6, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Second volcano
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.6, canvas.height);
+            ctx.lineTo(canvas.width * 0.8, canvas.height * 0.5);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw some ember particles
+            ctx.fillStyle = 'rgba(255, 180, 0, 0.6)';
+            for (let i = 0; i < 15; i++) {
+                const x = Math.random() * canvas.width;
+                const y = canvas.height - Math.random() * 150;
+                const size = 1 + Math.random() * 3;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        function drawTempleBackground() {
+            // Draw distant temple silhouette
+            ctx.fillStyle = 'rgba(60, 40, 20, 0.3)';
+            
+            // Temple base
+            ctx.fillRect(canvas.width * 0.3, canvas.height * 0.5, canvas.width * 0.4, canvas.height * 0.2);
+            
+            // Temple roof/top
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.25, canvas.height * 0.5);
+            ctx.lineTo(canvas.width * 0.5, canvas.height * 0.3);
+            ctx.lineTo(canvas.width * 0.75, canvas.height * 0.5);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Temple columns
+            const columnWidth = canvas.width * 0.03;
+            const columnSpacing = canvas.width * 0.07;
+            const columnBase = canvas.height * 0.5;
+            const columnHeight = canvas.height * 0.15;
+            
+            for (let i = 0; i < 5; i++) {
+                const x = canvas.width * 0.32 + i * columnSpacing;
+                ctx.fillRect(x, columnBase - columnHeight, columnWidth, columnHeight);
+            }
+        }
+        
+        function drawCrystalBackground() {
+            // Draw crystal formations
+            for (let i = 0; i < 12; i++) {
+                const x = i * (canvas.width / 12) + Math.random() * 20;
+                const height = 30 + Math.random() * 60;
+                const width = 10 + Math.random() * 15;
+                
+                // Create crystal gradient
+                const crystalGradient = ctx.createLinearGradient(x, 0, x + width, 0);
+                crystalGradient.addColorStop(0, 'rgba(100, 100, 200, 0.2)');
+                crystalGradient.addColorStop(0.5, 'rgba(150, 150, 255, 0.3)');
+                crystalGradient.addColorStop(1, 'rgba(100, 100, 200, 0.2)');
+                
+                ctx.fillStyle = crystalGradient;
+                
+                // Draw crystal
+                ctx.beginPath();
+                if (i % 2 === 0) {
+                    // Crystal from top
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x + width/2, height);
+                    ctx.lineTo(x + width, 0);
+                } else {
+                    // Crystal from bottom
+                    ctx.moveTo(x, canvas.height);
+                    ctx.lineTo(x + width/2, canvas.height - height);
+                    ctx.lineTo(x + width, canvas.height);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        
+        function drawSkyBackground() {
+            // Draw clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            
+            for (let i = 0; i < 6; i++) {
+                const x = i * (canvas.width / 6) + Math.sin(Date.now() / 5000 + i) * 20;
+                const y = 50 + i * 30;
+                const width = 80 + Math.sin(i * 0.7) * 20;
+                const height = 30 + Math.cos(i * 0.5) * 10;
+                
+                drawCloud(x, y, width, height);
+            }
+            
+            // Draw distant floating islands
+            ctx.fillStyle = 'rgba(100, 180, 100, 0.2)';
+            for (let i = 0; i < 4; i++) {
+                const x = i * (canvas.width / 4) + 30;
+                const y = 100 + i * 40;
+                const width = 100 + Math.sin(i) * 30;
+                const height = 20 + Math.cos(i) * 5;
+                
+                // Island base
+                ctx.beginPath();
+                ctx.ellipse(x, y, width/2, height/2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Island top (grass)
+                ctx.fillStyle = 'rgba(100, 220, 100, 0.2)';
+                ctx.beginPath();
+                ctx.ellipse(x, y - 2, width/2 - 5, height/2 - 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        function drawCloud(x, y, width, height) {
+            const numCircles = 3 + Math.floor(width / 40);
+            const circleRadius = height * 0.8;
+            
+            for (let i = 0; i < numCircles; i++) {
+                const circleX = x + (i * width/numCircles);
+                const circleY = y + Math.sin(i * 0.5) * 5;
+                
+                ctx.beginPath();
+                ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
         function drawPlatforms(platforms) {
             if (!platforms || !Array.isArray(platforms)) return;
             
@@ -1389,33 +2044,199 @@
                 const scaledWidth = obstacle.width * scaleX;
                 const scaledHeight = obstacle.height * scaleY;
                 
-                // Choose color based on type
+                // Choose color and drawing method based on type
                 switch(obstacle.type) {
                     case 'log':
                         ctx.fillStyle = '#8B4513'; // Brown
+                        ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
+                        
+                        // Add wood grain
+                        ctx.strokeStyle = '#654321';
+                        ctx.beginPath();
+                        for (let i = 0; i < 3; i++) {
+                            ctx.moveTo(scaledX, scaledY + i * scaledHeight/3);
+                            ctx.lineTo(scaledX + scaledWidth, scaledY + i * scaledHeight/3);
+                        }
+                        ctx.stroke();
                         break;
+                        
                     case 'boulder':
                         ctx.fillStyle = '#A9A9A9'; // DarkGray
+                        
+                        // Draw a more boulder-like shape
+                        ctx.beginPath();
+                        ctx.moveTo(scaledX, scaledY + scaledHeight);
+                        ctx.lineTo(scaledX, scaledY + scaledHeight * 0.3);
+                        ctx.lineTo(scaledX + scaledWidth * 0.3, scaledY);
+                        ctx.lineTo(scaledX + scaledWidth * 0.7, scaledY);
+                        ctx.lineTo(scaledX + scaledWidth, scaledY + scaledHeight * 0.3);
+                        ctx.lineTo(scaledX + scaledWidth, scaledY + scaledHeight);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Add some texture
+                        ctx.strokeStyle = '#808080';
+                        ctx.beginPath();
+                        ctx.moveTo(scaledX + scaledWidth * 0.2, scaledY + scaledHeight * 0.3);
+                        ctx.lineTo(scaledX + scaledWidth * 0.5, scaledY + scaledHeight * 0.5);
+                        ctx.moveTo(scaledX + scaledWidth * 0.7, scaledY + scaledHeight * 0.2);
+                        ctx.lineTo(scaledX + scaledWidth * 0.5, scaledY + scaledHeight * 0.6);
+                        ctx.stroke();
                         break;
+                        
                     case 'cactus':
                         ctx.fillStyle = '#2E8B57'; // SeaGreen
+                        ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
+                        
+                        // Add cactus arms
+                        ctx.fillRect(scaledX - scaledWidth/2, scaledY + scaledHeight/3, scaledWidth/2, scaledHeight/4);
+                        ctx.fillRect(scaledX + scaledWidth, scaledY + scaledHeight/2, scaledWidth/2, scaledHeight/4);
+                        
+                        // Add cactus spines
+                        ctx.strokeStyle = '#98FB98';
+                        ctx.beginPath();
+                        for (let i = 0; i < 5; i++) {
+                            let y = scaledY + (i * scaledHeight/4);
+                            ctx.moveTo(scaledX, y);
+                            ctx.lineTo(scaledX - 5, y - 2);
+                            ctx.moveTo(scaledX + scaledWidth, y);
+                            ctx.lineTo(scaledX + scaledWidth + 5, y - 2);
+                        }
+                        ctx.stroke();
                         break;
+                        
+                    case 'stalactite':
+                        // Draw a stalactite
+                        ctx.fillStyle = '#444';
+                        ctx.beginPath();
+                        ctx.moveTo(scaledX, scaledY);
+                        ctx.lineTo(scaledX + scaledWidth/2, scaledY + scaledHeight);
+                        ctx.lineTo(scaledX + scaledWidth, scaledY);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                        
+                    case 'ice':
+                        // Draw an ice obstacle with transparency
+                        ctx.fillStyle = 'rgba(135, 206, 235, 0.6)';
+                        ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
+                        
+                        // Add shine effect
+                        const iceGradient = ctx.createLinearGradient(
+                            scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight
+                        );
+                        iceGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+                        iceGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+                        iceGradient.addColorStop(1, 'rgba(255, 255, 255, 0.2)');
+                        
+                        ctx.fillStyle = iceGradient;
+                        ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
+                        break;
+                        
+                    case 'lava':
+                        // Draw lava with glow effect
+                        const lavaGradient = ctx.createRadialGradient(
+                            scaledX + scaledWidth/2, scaledY + scaledHeight/2, 0,
+                            scaledX + scaledWidth/2, scaledY + scaledHeight/2, scaledWidth/2
+                        );
+                        lavaGradient.addColorStop(0, 'rgba(255, 200, 0, 0.8)');
+                        lavaGradient.addColorStop(0.6, 'rgba(255, 50, 0, 0.7)');
+                        lavaGradient.addColorStop(1, 'rgba(200, 0, 0, 0.5)');
+                        
+                        ctx.fillStyle = lavaGradient;
+                        
+                        // Create wavy top for lava
+                        ctx.beginPath();
+                        ctx.moveTo(scaledX, scaledY + scaledHeight);
+                        
+                        const segments = 10;
+                        const waveHeight = scaledHeight * 0.2;
+                        
+                        for (let i = 0; i <= segments; i++) {
+                            const x = scaledX + (i * scaledWidth / segments);
+                            const y = scaledY + Math.sin(Date.now() / 500 + i) * waveHeight;
+                            ctx.lineTo(x, y);
+                        }
+                        
+                        ctx.lineTo(scaledX + scaledWidth, scaledY + scaledHeight);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Add glow effect
+                        ctx.shadowColor = 'rgba(255, 100, 0, 0.8)';
+                        ctx.shadowBlur = 10;
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 0;
+                        
+                        ctx.beginPath();
+                        ctx.arc(scaledX + scaledWidth/2, scaledY + scaledHeight/2, scaledWidth/4, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Reset shadow
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                        break;
+                        
+                    case 'crystal':
+                        // Draw crystal obstacle
+                        const crystalGradient = ctx.createLinearGradient(
+                            scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight
+                        );
+                        crystalGradient.addColorStop(0, 'rgba(100, 100, 255, 0.6)');
+                        crystalGradient.addColorStop(0.5, 'rgba(150, 150, 255, 0.7)');
+                        crystalGradient.addColorStop(1, 'rgba(100, 100, 200, 0.6)');
+                        
+                        ctx.fillStyle = crystalGradient;
+                        
+                        // Draw crystal shape
+                        ctx.beginPath();
+                        ctx.moveTo(scaledX + scaledWidth/2, scaledY);
+                        ctx.lineTo(scaledX, scaledY + scaledHeight * 0.3);
+                        ctx.lineTo(scaledX + scaledWidth * 0.3, scaledY + scaledHeight);
+                        ctx.lineTo(scaledX + scaledWidth * 0.7, scaledY + scaledHeight);
+                        ctx.lineTo(scaledX + scaledWidth, scaledY + scaledHeight * 0.3);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Add shine
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                        ctx.beginPath();
+                        ctx.moveTo(scaledX + scaledWidth * 0.3, scaledY + scaledHeight * 0.3);
+                        ctx.lineTo(scaledX + scaledWidth * 0.7, scaledY + scaledHeight * 0.7);
+                        ctx.stroke();
+                        break;
+                        
+                    case 'cloud':
+                        // Draw cloud obstacle
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        drawCloud(scaledX + scaledWidth/2, scaledY + scaledHeight/2, scaledWidth, scaledHeight);
+                        break;
+                        
+                    case 'spike':
+                        // Draw spike obstacle
+                        ctx.fillStyle = '#8B4513';
+                        
+                        // Base
+                        ctx.fillRect(scaledX, scaledY + scaledHeight * 0.8, scaledWidth, scaledHeight * 0.2);
+                        
+                        // Spikes
+                        ctx.fillStyle = '#A52A2A';
+                        const spikeCount = 3;
+                        const spikeWidth = scaledWidth / spikeCount;
+                        
+                        for (let i = 0; i < spikeCount; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(scaledX + i * spikeWidth, scaledY + scaledHeight * 0.8);
+                            ctx.lineTo(scaledX + (i + 0.5) * spikeWidth, scaledY);
+                            ctx.lineTo(scaledX + (i + 1) * spikeWidth, scaledY + scaledHeight * 0.8);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                        break;
+                        
                     default:
                         ctx.fillStyle = '#8B4513';
-                }
-                
-                ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
-                
-                // Add effects for certain obstacles
-                if (obstacle.type === 'cactus') {
-                    // Add cactus spines
-                    ctx.strokeStyle = '#98FB98';
-                    ctx.beginPath();
-                    ctx.moveTo(scaledX + scaledWidth/2, scaledY);
-                    ctx.lineTo(scaledX + scaledWidth/2 + 5, scaledY - 5);
-                    ctx.moveTo(scaledX + scaledWidth/2, scaledY + scaledHeight/3);
-                    ctx.lineTo(scaledX + scaledWidth/2 + 5, scaledY + scaledHeight/3 - 5);
-                    ctx.stroke();
+                        ctx.fillRect(scaledX, scaledY, scaledWidth, scaledHeight);
                 }
             });
         }
@@ -1434,10 +2255,10 @@
                 const scaledWidth = collectible.width * scaleX;
                 const scaledHeight = collectible.height * scaleY;
                 
+                const centerX = scaledX + scaledWidth/2;
+                const centerY = scaledY + scaledHeight/2;
+                
                 if (collectible.type === 'flame') {
-                    const centerX = scaledX + scaledWidth/2;
-                    const centerY = scaledY + scaledHeight/2;
-                    
                     // Flame glow
                     ctx.shadowColor = 'rgba(255, 100, 0, 0.8)';
                     ctx.shadowBlur = 10;
@@ -1462,6 +2283,105 @@
                     // Reset shadow
                     ctx.shadowColor = 'transparent';
                     ctx.shadowBlur = 0;
+                } else if (collectible.type === 'powerup') {
+                    // Powerup glow
+                    ctx.shadowColor = 'rgba(0, 150, 255, 0.8)';
+                    ctx.shadowBlur = 15;
+                    
+                    // Powerup animation
+                    const scaleEffect = 0.9 + Math.sin(Date.now() / 200) * 0.1;
+                    const displayRadius = scaledWidth/2 * scaleEffect;
+                    
+                    // Create powerup gradient
+                    const gradient = ctx.createRadialGradient(
+                        centerX, centerY, displayRadius * 0.2,
+                        centerX, centerY, displayRadius
+                    );
+                    gradient.addColorStop(0, 'rgba(200, 255, 255, 1)');
+                    gradient.addColorStop(0.6, 'rgba(0, 200, 255, 0.8)');
+                    gradient.addColorStop(1, 'rgba(0, 50, 200, 0.6)');
+                    
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, displayRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Add star effect
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.lineWidth = 2;
+                    
+                    const time = Date.now() / 1000;
+                    const starRotation = time % (Math.PI * 2);
+                    
+                    ctx.beginPath();
+                    for (let i = 0; i < 4; i++) {
+                        const angle = (i * Math.PI / 2) + starRotation;
+                        ctx.moveTo(centerX, centerY);
+                        ctx.lineTo(
+                            centerX + Math.cos(angle) * displayRadius,
+                            centerY + Math.sin(angle) * displayRadius
+                        );
+                    }
+                    ctx.stroke();
+                    
+                    // Reset shadow and line width
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+                    ctx.lineWidth = 1;
+                } else if (collectible.type === 'superflame') {
+                    // Super flame glow
+                    ctx.shadowColor = 'rgba(255, 220, 0, 0.9)';
+                    ctx.shadowBlur = 20;
+                    
+                    // Multiple flame layers for more impressive effect
+                    const baseRadius = scaledWidth/2 * (1 + Math.sin(Date.now() / 200) * 0.2);
+                    
+                    // Outer flame
+                    const outerGradient = ctx.createRadialGradient(
+                        centerX, centerY, baseRadius * 0.4,
+                        centerX, centerY, baseRadius * 1.2
+                    );
+                    outerGradient.addColorStop(0, 'rgba(255, 200, 50, 0.8)');
+                    outerGradient.addColorStop(0.6, 'rgba(255, 100, 0, 0.6)');
+                    outerGradient.addColorStop(1, 'rgba(200, 40, 0, 0.2)');
+                    
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, baseRadius * 1.2, 0, Math.PI * 2);
+                    ctx.fillStyle = outerGradient;
+                    ctx.fill();
+                    
+                    // Inner flame
+                    const innerGradient = ctx.createRadialGradient(
+                        centerX, centerY, baseRadius * 0.1,
+                        centerX, centerY, baseRadius * 0.8
+                    );
+                    innerGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                    innerGradient.addColorStop(0.5, 'rgba(255, 255, 0, 0.8)');
+                    innerGradient.addColorStop(1, 'rgba(255, 150, 0, 0.6)');
+                    
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, baseRadius * 0.8, 0, Math.PI * 2);
+                    ctx.fillStyle = innerGradient;
+                    ctx.fill();
+                    
+                    // Add pulsing particles
+                    const time = Date.now() / 500;
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2 + time;
+                        const distance = baseRadius * (0.8 + Math.sin(time * 2 + i) * 0.2);
+                        const particleX = centerX + Math.cos(angle) * distance;
+                        const particleY = centerY + Math.sin(angle) * distance;
+                        const particleSize = 2 + Math.sin(time * 3 + i * 2) * 1;
+                        
+                        ctx.beginPath();
+                        ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(255, 255, 200, 0.8)';
+                        ctx.fill();
+                    }
+                    
+                    // Reset shadow
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
                 }
             });
         }
@@ -1479,7 +2399,7 @@
             
             // Draw level name and flames
             ctx.textAlign = 'center';
-            ctx.fillText(level.name, canvas.width/2, 30);
+            ctx.fillText(`Level ${gameState.currentLevel + 1}: ${level.name}`, canvas.width/2, 30);
             ctx.fillText(`Flames: ${level.collectibles.length}`, canvas.width/2, 60);
             ctx.textAlign = 'left';
             
@@ -1536,7 +2456,7 @@
                 player.checkObstacleCollisions(currentLevel.obstacles);
                 
                 if (player.checkCollectibleCollisions(currentLevel.collectibles)) {
-                    // Check if level is complete
+                    // Check if level is complete (no more collectibles)
                     if (currentLevel.collectibles.length === 0) {
                         advanceLevel();
                     }
